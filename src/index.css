@@ -1,6 +1,14 @@
 @import "tailwindcss";
 
 @layer base {
+  :root {
+    --palette-wine-dark: #5A0F24;
+    --palette-wine: #8C2C45;
+    --palette-rose: #C68A8F;
+    --palette-cream: #F3EFE6;
+    --palette-sand: #C9B8A6;
+  }
+
   body {
     background-color: #f6f2ee;
     color: #2b1b1e;

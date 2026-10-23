@@ -12,9 +12,13 @@ export default function Input({
   rightLink = null,
   icon: Icon = null,
   rightAction = null,
+  error = null,
+  helperText = null,
   className = '',
   ...props
 }) {
+  const hasError = Boolean(error);
+
   return (
     <div className={className}>
       {(label || badge || rightLink) && (
@@ -30,8 +34,8 @@ export default function Input({
       )}
       <div className="relative">
         {Icon && (
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#9a868a]">
-            <Icon className="w-4 h-4 text-[#8a6871]" />
+          <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${hasError ? 'text-[#8C2C45]' : 'text-[#9a868a]'}`}>
+            <Icon className="w-4 h-4" />
           </div>
         )}
         <input
@@ -41,9 +45,14 @@ export default function Input({
           value={value}
           onChange={onChange}
           placeholder={placeholder}
+          aria-invalid={hasError ? 'true' : 'false'}
           className={`w-full ${Icon ? 'pl-10' : 'pl-4'} ${
             rightAction ? 'pr-10' : 'pr-4'
-          } py-2.5 bg-white border border-[#e8deda] rounded-xl text-xs md:text-sm text-[#2b1b1e] placeholder-[#b0a0a4] focus:outline-none focus:ring-2 focus:ring-[#72293e]/20 focus:border-[#72293e] transition-all shadow-xs`}
+          } py-2.5 bg-white border ${
+            hasError
+              ? 'border-[#8C2C45] focus:ring-2 focus:ring-[#8C2C45]/20 focus:border-[#8C2C45]'
+              : 'border-[#e8deda] focus:ring-2 focus:ring-[#72293e]/20 focus:border-[#72293e]'
+          } rounded-xl text-xs md:text-sm text-[#2b1b1e] placeholder-[#b0a0a4] focus:outline-none transition-all shadow-xs`}
           {...props}
         />
         {rightAction && (
@@ -52,6 +61,16 @@ export default function Input({
           </div>
         )}
       </div>
+
+      {hasError ? (
+        <p className="mt-1.5 text-[11px] font-medium text-[#8C2C45] flex items-center gap-1">
+          <span>•</span> {error}
+        </p>
+      ) : helperText ? (
+        <p className="mt-1 text-[11px] text-[#7d686d]">
+          {helperText}
+        </p>
+      ) : null}
     </div>
   );
 }

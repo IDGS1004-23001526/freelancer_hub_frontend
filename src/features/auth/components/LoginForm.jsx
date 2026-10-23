@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { AtSign, Lock, Eye, EyeOff, ArrowRight, HelpCircle } from 'lucide-react';
 import Input from '../../ui/Input.jsx';
 import Button from '../../ui/Button.jsx';
@@ -171,12 +172,12 @@ export default function LoginForm() {
       {/* Enlace para registrarse */}
       <div className="mt-6 text-center text-xs text-[#7d686d]">
         ¿Aún no tienes cuenta?{' '}
-        <a
-          href="#registro"
+        <Link
+          to="/register"
           className="font-bold text-[#6e2c3e] hover:underline transition-colors"
         >
           Regístrate
-        </a>
+        </Link>
       </div>
 
       {/* Enlaces de soporte y términos */}

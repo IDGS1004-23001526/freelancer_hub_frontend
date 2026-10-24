@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { User, Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck } from 'lucide-react';
 import Input from '../../ui/Input.jsx';
 import Button from '../../ui/Button.jsx';
@@ -25,7 +26,7 @@ import { isValidEmail, isValidFullName, validatePassword } from '../../../utils/
  */
 export default function RegisterForm() {
   const navigate = useNavigate();
-  const { register, loading } = useAuthStore();
+  const { register, googleLogin, loading } = useAuthStore();
 
   // Form states
   const [role, setRole] = useState('FREELANCER');
@@ -169,6 +170,43 @@ export default function RegisterForm() {
   const handleOAuthRegister = (provider) => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
     window.location.href = `${apiUrl}/v1/auth/${provider}?role=${role}`;
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    const token = credentialResponse.credential;
+    if (!token) return;
+
+    const result = await googleLogin(token, role);
+    if (result.success) {
+      setToast({
+        type: 'success',
+        title: '¡Registro con Google exitoso!',
+        message: `Bienvenido/a ${result.user?.fullName || ''}. Redirigiendo a tu onboarding...`,
+      });
+
+      setTimeout(() => {
+        navigate('/onboarding', {
+          state: {
+            newUser: result.user,
+            role: result.user?.role || role,
+          },
+        });
+      }, 1000);
+    } else {
+      setToast({
+        type: 'error',
+        title: 'Error de autenticación',
+        message: result.error || 'No se pudo conectar con Google.',
+      });
+    }
+  };
+
+  const handleGoogleError = () => {
+    setToast({
+      type: 'error',
+      title: 'Error de Google',
+      message: 'No se pudo completar la autenticación con Google. Inténtalo de nuevo.',
+    });
   };
 
   return (
@@ -387,31 +425,17 @@ export default function RegisterForm() {
           <span className="text-[#5A0F24]">Apple</span>
         </Button>
 
-        <Button
-          variant="secondary"
-          onClick={() => handleOAuthRegister('google')}
-          className="border-[#C9B8A6]/60 hover:bg-[#F3EFE6]/50"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24">
-            <path
-              fill="#4285F4"
-              d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
-            />
-            <path
-              fill="#34A853"
-              d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
-            />
-            <path
-              fill="#EA4335"
-              d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-            />
-          </svg>
-          <span className="text-[#5A0F24]">Google</span>
-        </Button>
+        {/* Google Button */}
+        <div className="flex justify-center items-center w-full [&>div]:w-full [&_iframe]:w-full">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            shape="pill"
+            size="large"
+            text="signup_with"
+            locale="es"
+          />
+        </div>
       </div>
 
       {/* Navigation link back to Login */}

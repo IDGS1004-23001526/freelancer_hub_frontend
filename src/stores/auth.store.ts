@@ -11,6 +11,7 @@ interface AuthState {
   error: string | null;
   login: (credentials: LoginCredentials) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
   register: (payload: RegisterPayload) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
+  googleLogin: (idToken: string, role?: string) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -109,6 +110,37 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const message =
         err.response?.data?.message || err.message || 'Error creating account. Please try again.';
+      set({ error: message, loading: false });
+      return { success: false, error: message };
+    }
+  },
+
+  googleLogin: async (idToken: string, role?: string) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await authApi.googleAuth(idToken, role);
+      if (!response.data) {
+        throw new Error('Respuesta inválida del servidor');
+      }
+
+      const { accessToken, refreshToken, user } = response.data;
+
+      localStorage.setItem('fh_access_token', accessToken);
+      localStorage.setItem('fh_refresh_token', refreshToken);
+      localStorage.setItem('fh_user', JSON.stringify(user));
+
+      set({
+        user,
+        accessToken,
+        refreshToken,
+        isAuthenticated: true,
+        loading: false,
+      });
+
+      return { success: true, user };
+    } catch (err: any) {
+      const message =
+        err.response?.data?.message || err.message || 'Error al autenticar con Google.';
       set({ error: message, loading: false });
       return { success: false, error: message };
     }

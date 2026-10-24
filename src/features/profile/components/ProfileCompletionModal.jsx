@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 // Importar iconos de Lucide
-import { X, Sparkles, CheckCircle2, Briefcase, FolderGit2, Code2, DollarSign, ExternalLink, Trash2, Plus, Loader2, ArrowRight, ArrowLeft,
-  Award,
-} from 'lucide-react';
+import { X, Sparkles, CheckCircle2, Briefcase, FolderGit2, Code2, DollarSign, ExternalLink, Trash2, Plus, Loader2, ArrowRight, ArrowLeft, Award, User } from 'lucide-react';
 import { profileApi } from '../../../api/profile.api.js';
 import Button from '../../ui/Button.jsx';
 import Input from '../../ui/Input.jsx';
@@ -37,7 +35,10 @@ export default function ProfileCompletionModal({
   const [errorMessage, setErrorMessage] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
 
-  // Paso 1 State: Información Profesional
+  // Paso 1 State: Información Personal y Profesional (Mapeado a BD y Backend)
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
   const [professionalTitle, setProfessionalTitle] = useState('');
   const [bio, setBio] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
@@ -79,6 +80,9 @@ export default function ProfileCompletionModal({
       const profileRes = await profileApi.getMyProfile().catch(() => null);
       if (profileRes?.data) {
         const p = profileRes.data;
+        if (p.first_name) setFirstName(p.first_name);
+        if (p.last_name) setLastName(p.last_name);
+        if (p.phone) setPhone(p.phone);
         if (p.professionalTitle) setProfessionalTitle(p.professionalTitle);
         if (p.bio) setBio(p.bio);
         if (p.hourlyRate) setHourlyRate(String(p.hourlyRate));
@@ -89,6 +93,9 @@ export default function ProfileCompletionModal({
         const saved = localStorage.getItem('fh_local_profile');
         if (saved) {
           const parsed = JSON.parse(saved);
+          if (parsed.first_name) setFirstName(parsed.first_name);
+          if (parsed.last_name) setLastName(parsed.last_name);
+          if (parsed.phone) setPhone(parsed.phone);
           if (parsed.professionalTitle) setProfessionalTitle(parsed.professionalTitle);
           if (parsed.bio) setBio(parsed.bio);
           if (parsed.hourlyRate) setHourlyRate(String(parsed.hourlyRate));
@@ -103,13 +110,21 @@ export default function ProfileCompletionModal({
     }
   };
 
-  // Guardar Paso 1: Información Profesional
+  // Guardar Paso 1: Información Personal y Profesional
   const handleSaveStep1 = async (e) => {
     if (e) e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
 
     const rateNum = parseFloat(hourlyRate);
+    if (!firstName.trim()) {
+      setErrorMessage('El nombre es obligatorio.');
+      return;
+    }
+    if (!lastName.trim()) {
+      setErrorMessage('Los apellidos son obligatorios.');
+      return;
+    }
     if (!professionalTitle.trim() || professionalTitle.trim().length < 3) {
       setErrorMessage('El título profesional debe tener al menos 3 caracteres.');
       return;
@@ -125,13 +140,17 @@ export default function ProfileCompletionModal({
 
     setActionLoading(true);
     try {
+      // Payload alineado con el backend (first_name, last_name, phone, bio, etc.)
       const payload = {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        phone: phone.trim(),
         professionalTitle: professionalTitle.trim(),
         bio: bio.trim(),
         hourlyRate: rateNum,
       };
 
-      await profileApi.updateProfessionalInfo(payload).catch((err) => {
+      await profileApi.updateProfile(payload).catch((err) => {
         // Guardar localmente si falla conexión
         const existing = JSON.parse(localStorage.getItem('fh_local_profile') || '{}');
         localStorage.setItem(
@@ -140,14 +159,14 @@ export default function ProfileCompletionModal({
         );
       });
 
-      setSuccessMessage('¡Información profesional guardada correctamente!');
+      setSuccessMessage('¡Información guardada correctamente!');
       refreshStatus();
       setTimeout(() => {
         setSuccessMessage(null);
         setActiveStep(2);
       }, 900);
     } catch (err) {
-      setErrorMessage(err.message || 'Error al guardar información profesional.');
+      setErrorMessage(err.message || 'Error al guardar la información.');
     } finally {
       setActionLoading(false);
     }
@@ -172,7 +191,6 @@ export default function ProfileCompletionModal({
       return;
     }
 
-    // Validación básica de URL
     let formattedUrl = newProject.projectUrl.trim();
     if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
       formattedUrl = 'https://' + formattedUrl;
@@ -188,7 +206,6 @@ export default function ProfileCompletionModal({
       };
 
       const res = await profileApi.addPortfolioItem(payload).catch(() => {
-        // Fallback local
         const simulated = {
           id: `item_${Date.now()}`,
           profileId: 'local',
@@ -220,7 +237,6 @@ export default function ProfileCompletionModal({
     }
   };
 
-  // Eliminar muestra del portafolio
   const handleDeletePortfolioItem = async (itemId) => {
     setActionLoading(true);
     try {
@@ -242,7 +258,6 @@ export default function ProfileCompletionModal({
     }
   };
 
-  // Paso 3: Toggle / Add Skills
   const toggleSkill = (skillName) => {
     if (skills.includes(skillName)) {
       setSkills((prev) => prev.filter((s) => s !== skillName));
@@ -275,7 +290,6 @@ export default function ProfileCompletionModal({
     setSkills((prev) => prev.filter((s) => s !== skillToRemove));
   };
 
-  // Guardar Paso 3: Habilidades
   const handleSaveStep3 = async () => {
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -314,8 +328,7 @@ export default function ProfileCompletionModal({
         setOnboardingStatus(statusRes.data);
         if (onProgressUpdated) onProgressUpdated(statusRes.data);
       } else {
-        // Simular progreso local
-        const step1Done = Boolean(professionalTitle && bio && hourlyRate);
+        const step1Done = Boolean(firstName && lastName && professionalTitle && bio && hourlyRate);
         const step2Done = portfolioItems.length > 0;
         const step3Done = skills.length > 0;
         const completedCount = [step1Done, step2Done, step3Done].filter(Boolean).length;
@@ -336,8 +349,9 @@ export default function ProfileCompletionModal({
 
   if (!isOpen) return null;
 
-  // Cálculos de progreso
   const step1Complete = Boolean(
+    firstName.trim() &&
+    lastName.trim() &&
     professionalTitle.trim().length >= 3 &&
     bio.trim().length >= 10 &&
     Number(hourlyRate) > 0
@@ -350,7 +364,6 @@ export default function ProfileCompletionModal({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 animate-fade-in">
       <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-[0_25px_60px_-15px_rgba(90,15,36,0.25)] border border-[#C9B8A6]/60 overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Glow de fondo decorativo */}
         <div className="absolute -top-16 -right-16 w-48 h-48 bg-[#C68A8F]/20 rounded-full blur-3xl pointer-events-none" />
 
         {/* Modal Header */}
@@ -445,7 +458,6 @@ export default function ProfileCompletionModal({
 
         {/* Modal Body / Scrollable Content */}
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
-          {/* Notifications */}
           {errorMessage && (
             <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center justify-between animate-fade-in">
               <span>{errorMessage}</span>
@@ -484,13 +496,42 @@ export default function ProfileCompletionModal({
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-[#5A0F24]">
-                    Paso 1: Información Profesional
+                    Paso 1: Información Personal y Profesional
                   </h3>
                   <p className="text-[11px] text-[#5A0F24]/75">
-                    Define tu especialidad y propuesta de valor para que los contratantes conozcan tu perfil.
+                    Proporciona tus datos de identidad, especialidad y tarifa.
                   </p>
                 </div>
               </div>
+
+              {/* Nombre y Apellidos */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Input
+                  id="firstName"
+                  label="Nombre"
+                  placeholder="ej. Juan"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                />
+                <Input
+                  id="lastName"
+                  label="Apellidos"
+                  placeholder="ej. Pérez Gómez"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                />
+              </div>
+
+              {/* Teléfono */}
+              <Input
+                id="phone"
+                label="Teléfono de Contacto"
+                placeholder="ej. +524771234567"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
 
               {/* Título Profesional */}
               <Input
@@ -519,12 +560,9 @@ export default function ProfileCompletionModal({
                   required
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  placeholder="Describe detalladamente tus años de experiencia, principales proyectos concluidos y cómo puedes ayudar a resolver las necesidades de tus clientes..."
+                  placeholder="Describe detalladamente tu experiencia, proyectos y soluciones..."
                   className="w-full p-3.5 bg-white border border-[#e8deda] focus:ring-2 focus:ring-[#72293e]/20 focus:border-[#72293e] rounded-xl text-xs md:text-sm text-[#2b1b1e] placeholder-[#b0a0a4] focus:outline-none transition-all resize-y shadow-xs"
                 />
-                <p className="mt-1 text-[11px] text-[#7d686d]">
-                  Mínimo 10 caracteres. Una buena biografía aumenta tus oportunidades de contratación.
-                </p>
               </div>
 
               {/* Tarifa por hora */}
@@ -540,7 +578,7 @@ export default function ProfileCompletionModal({
                 value={hourlyRate}
                 onChange={(e) => setHourlyRate(e.target.value)}
                 required
-                helperText="Monto en dólares estadounidenses que cobras por hora de trabajo."
+                helperText="Monto en dólares estadounidenses que cobras por hora."
               />
 
               <div className="pt-2 flex justify-end">
@@ -577,12 +615,11 @@ export default function ProfileCompletionModal({
                     Paso 2: Muestras de tu Portafolio
                   </h3>
                   <p className="text-[11px] text-[#5A0F24]/75">
-                    Demuestra tu experiencia con proyectos concluidos, repositorios o enlaces en vivo.
+                    Demuestra tu experiencia con proyectos concluidos.
                   </p>
                 </div>
               </div>
 
-              {/* Formulario para agregar proyecto */}
               <form
                 onSubmit={handleAddPortfolioItem}
                 className="p-4 rounded-2xl bg-[#F3EFE6]/40 border border-[#C9B8A6]/40 space-y-3"
@@ -595,7 +632,7 @@ export default function ProfileCompletionModal({
                 <Input
                   id="projectTitle"
                   label="Título del Proyecto"
-                  placeholder="ej. E-Commerce Platform con Pagos Escrow"
+                  placeholder="ej. E-Commerce Platform"
                   value={newProject.title}
                   onChange={(e) => setNewProject({ ...newProject, title: e.target.value })}
                   required
@@ -616,7 +653,7 @@ export default function ProfileCompletionModal({
                     onChange={(e) =>
                       setNewProject({ ...newProject, description: e.target.value })
                     }
-                    placeholder="Explica qué problema resolvió el proyecto, arquitectura y tecnologías utilizadas..."
+                    placeholder="Explica qué problema resolvió y tecnologías utilizadas..."
                     className="w-full p-3 bg-white border border-[#e8deda] focus:ring-2 focus:ring-[#72293e]/20 focus:border-[#72293e] rounded-xl text-xs text-[#2b1b1e] placeholder-[#b0a0a4] focus:outline-none transition-all shadow-xs"
                   />
                 </div>
@@ -624,7 +661,7 @@ export default function ProfileCompletionModal({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <Input
                     id="projectUrl"
-                    label="Enlace del Proyecto / Demo / Repositorio"
+                    label="Enlace del Proyecto"
                     placeholder="https://github.com/..."
                     value={newProject.projectUrl}
                     onChange={(e) =>
@@ -636,8 +673,8 @@ export default function ProfileCompletionModal({
 
                   <Input
                     id="imageUrl"
-                    label="URL de Imagen / Captura (Opcional)"
-                    placeholder="https://images.unsplash.com/..."
+                    label="URL de Imagen (Opcional)"
+                    placeholder="https://..."
                     value={newProject.imageUrl}
                     onChange={(e) =>
                       setNewProject({ ...newProject, imageUrl: e.target.value })
@@ -662,7 +699,6 @@ export default function ProfileCompletionModal({
                 </div>
               </form>
 
-              {/* Lista de proyectos agregados */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-xs font-bold text-[#5A0F24] uppercase tracking-wider">
@@ -680,9 +716,6 @@ export default function ProfileCompletionModal({
                     <FolderGit2 className="w-8 h-8 text-[#8C2C45]/40 mx-auto mb-2" />
                     <p className="text-xs font-bold text-[#5A0F24]">
                       Aún no has agregado proyectos
-                    </p>
-                    <p className="text-[11px] text-[#5A0F24]/70 mt-1 max-w-sm mx-auto">
-                      Agrega al menos una muestra para que los clientes puedan evaluar la calidad de tu trabajo.
                     </p>
                   </div>
                 ) : (
@@ -724,7 +757,6 @@ export default function ProfileCompletionModal({
                 )}
               </div>
 
-              {/* Botones de navegación */}
               <div className="pt-2 flex items-center justify-between">
                 <Button
                   type="button"
@@ -760,18 +792,17 @@ export default function ProfileCompletionModal({
                     Paso 3: Valida tus Habilidades Técnicas
                   </h3>
                   <p className="text-[11px] text-[#5A0F24]/75">
-                    Selecciona tus tags principales para posicionarte en las búsquedas de clientes.
+                    Selecciona tus tags principales para posicionarte en búsquedas.
                   </p>
                 </div>
               </div>
 
-              {/* Input de tag personalizado */}
               <form onSubmit={handleAddCustomSkill} className="flex gap-2">
                 <input
                   type="text"
                   value={customSkillInput}
                   onChange={(e) => setCustomSkillInput(e.target.value)}
-                  placeholder="Escribe otra habilidad (ej. Docker, NestJS, Go)..."
+                  placeholder="Escribe otra habilidad (ej. Docker, NestJS)..."
                   className="flex-1 px-3.5 py-2.5 bg-white border border-[#e8deda] focus:ring-2 focus:ring-[#72293e]/20 focus:border-[#72293e] rounded-xl text-xs text-[#2b1b1e] placeholder-[#b0a0a4] focus:outline-none transition-all shadow-xs"
                 />
                 <Button
@@ -784,10 +815,9 @@ export default function ProfileCompletionModal({
                 </Button>
               </form>
 
-              {/* Sugerencias populares rápidas */}
               <div>
                 <p className="text-[11px] font-semibold text-[#5A0F24]/70 mb-2">
-                  Sugerencias Populares (Haz clic para agregar o quitar):
+                  Sugerencias Populares:
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {POPULAR_SKILLS.map((item) => {
@@ -811,7 +841,6 @@ export default function ProfileCompletionModal({
                 </div>
               </div>
 
-              {/* Skills seleccionadas */}
               <div className="p-4 rounded-2xl bg-[#F3EFE6]/40 border border-[#C9B8A6]/40">
                 <div className="flex items-center justify-between mb-2.5">
                   <span className="text-xs font-bold text-[#5A0F24]">
@@ -826,7 +855,7 @@ export default function ProfileCompletionModal({
 
                 {skills.length === 0 ? (
                   <p className="text-xs text-[#5A0F24]/60 italic py-2">
-                    Aún no has seleccionado habilidades. Haz clic en las sugerencias o escribe las tuyas arriba.
+                    Aún no has seleccionado habilidades.
                   </p>
                 ) : (
                   <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto">
@@ -849,7 +878,6 @@ export default function ProfileCompletionModal({
                 )}
               </div>
 
-              {/* Botones de acción */}
               <div className="pt-2 flex items-center justify-between">
                 <Button
                   type="button"
@@ -883,7 +911,6 @@ export default function ProfileCompletionModal({
             </div>
           )}
 
-          {/* Estado de completitud total */}
           {calculatedPercentage === 100 && (
             <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/30 flex items-center gap-3.5 animate-fade-in">
               <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
@@ -894,7 +921,7 @@ export default function ProfileCompletionModal({
                   ¡Perfil 100% Completado!
                 </h4>
                 <p className="text-[11px] text-emerald-800/80 leading-snug">
-                  Has completado todos los pasos sugeridos. Tu perfil está optimizado para destacar en búsquedas de clientes.
+                  Has completado todos los pasos sugeridos de tu perfil.
                 </p>
               </div>
               <Button

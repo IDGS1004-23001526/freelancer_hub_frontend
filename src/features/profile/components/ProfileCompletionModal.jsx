@@ -32,7 +32,7 @@ export default function ProfileCompletionModal({
   onProgressUpdated,
 }) {
   const [activeStep, setActiveStep] = useState(initialStep);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
@@ -56,7 +56,7 @@ export default function ProfileCompletionModal({
   const [customSkillInput, setCustomSkillInput] = useState('');
 
   // Status de onboarding general
-  const [onboardingStatus, setOnboardingStatus] = useState(null);
+  const [, setOnboardingStatus] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -131,7 +131,7 @@ export default function ProfileCompletionModal({
         hourlyRate: rateNum,
       };
 
-      await profileApi.updateProfessionalInfo(payload).catch((err) => {
+      await profileApi.updateProfessionalInfo(payload).catch(() => {
         // Guardar localmente si falla conexión
         const existing = JSON.parse(localStorage.getItem('fh_local_profile') || '{}');
         localStorage.setItem(

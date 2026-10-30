@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AtSign, Lock, Eye, EyeOff, ArrowRight, HelpCircle } from 'lucide-react';
 import Input from '../../ui/Input.jsx';
 import Button from '../../ui/Button.jsx';
 import { useAuthStore } from '../../../stores/auth.store.js';
 
 export default function LoginForm() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -19,11 +20,15 @@ export default function LoginForm() {
 
     const result = await login({ email, password });
     if (result.success) {
-      setFeedback({ type: 'success', text: `¡Bienvenido de vuelta, ${result.user.fullName}!` });
+      setFeedback({ type: 'success', text: `¡Bienvenido de vuelta, ${result.user?.fullName || ''}!` });
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 600);
     } else {
       setFeedback({ type: 'error', text: result.error });
     }
   };
+
 
   const handleOAuthLogin = (provider) => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';

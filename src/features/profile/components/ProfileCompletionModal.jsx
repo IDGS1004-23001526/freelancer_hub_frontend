@@ -80,28 +80,45 @@ export default function ProfileCompletionModal({
       const profileRes = await profileApi.getMyProfile().catch(() => null);
       if (profileRes?.data) {
         const p = profileRes.data;
-        if (p.first_name) setFirstName(p.first_name);
-        if (p.last_name) setLastName(p.last_name);
+        const fName = p.firstName || p.first_name || '';
+        const lName = p.lastName || p.last_name || '';
+        if (fName) setFirstName(fName);
+        if (lName) setLastName(lName);
         if (p.phone) setPhone(p.phone);
         if (p.professionalTitle) setProfessionalTitle(p.professionalTitle);
         if (p.bio) setBio(p.bio);
-        if (p.hourlyRate) setHourlyRate(String(p.hourlyRate));
-        if (p.portfolioItems) setPortfolioItems(p.portfolioItems);
-        if (p.skills) setSkills(p.skills);
+        if (p.hourlyRate !== undefined && p.hourlyRate !== null) setHourlyRate(String(p.hourlyRate));
+        if (p.portfolioItems && Array.isArray(p.portfolioItems)) setPortfolioItems(p.portfolioItems);
+        if (p.skills && Array.isArray(p.skills)) {
+          const mapped = p.skills.map((s) => (typeof s === 'string' ? s : s?.name || '')).filter(Boolean);
+          setSkills(mapped);
+        }
       } else {
         // Fallback local storage
         const saved = localStorage.getItem('fh_local_profile');
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (parsed.first_name) setFirstName(parsed.first_name);
-          if (parsed.last_name) setLastName(parsed.last_name);
+          const fName = parsed.firstName || parsed.first_name || '';
+          const lName = parsed.lastName || parsed.last_name || '';
+          if (fName) setFirstName(fName);
+          if (lName) setLastName(lName);
           if (parsed.phone) setPhone(parsed.phone);
           if (parsed.professionalTitle) setProfessionalTitle(parsed.professionalTitle);
           if (parsed.bio) setBio(parsed.bio);
           if (parsed.hourlyRate) setHourlyRate(String(parsed.hourlyRate));
           if (parsed.portfolioItems) setPortfolioItems(parsed.portfolioItems);
-          if (parsed.skills) setSkills(parsed.skills);
+          if (parsed.skills && Array.isArray(parsed.skills)) {
+            const mapped = parsed.skills.map((s) => (typeof s === 'string' ? s : s?.name || '')).filter(Boolean);
+            setSkills(mapped);
+          }
         }
+      }
+
+      // Si los nombres siguen vacíos, auto-completar desde el usuario en sesión
+      if (user?.fullName) {
+        const parts = user.fullName.trim().split(/\s+/);
+        setFirstName((prev) => prev || parts[0] || '');
+        setLastName((prev) => prev || parts.slice(1).join(' ') || '');
       }
     } catch {
       // Silent error fallback

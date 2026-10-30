@@ -8,908 +8,708 @@ import {
   ShieldCheck,
   Search,
   Image as ImageIcon,
+  Video,
+  FileText,
   Send,
   ThumbsUp,
   MessageCircle,
   Share2,
   Bookmark,
-  Sparkles,
-  Clock,
-  DollarSign,
-  CheckCircle2,
-  Lock,
-  Plus,
-  LogOut,
-  TrendingUp,
+  Users,
+  Calendar,
+  Newspaper,
   MoreHorizontal,
-  User,
+  X,
+  Plus,
+  Building2,
+  Check,
+  ChevronDown,
+  Info,
   ExternalLink,
-  FolderGit2,
-  Filter,
-  Layers,
-  Award,
-  ChevronRight,
-  Heart,
-  Smile,
-  Globe2,
+  MapPin,
+  Sparkles,
+  LogOut,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/auth.store.js';
 import { profileApi } from '../api/profile.api.js';
-import Button from '../features/ui/Button.jsx';
-import ProfileCompletionModal from '../features/profile/components/ProfileCompletionModal.jsx';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
 
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+
   const currentUser = user || {
-    id: 'usr_guest',
-    fullName: 'Usuario FreelanceHub',
-    email: 'usuario@freelancehub.com',
+    id: 'usr_me',
+    fullName: 'Christopher Isaac Rivera Valderrama',
+    email: 'christoferriveravalderrama@gmail.com',
     role: 'FREELANCER',
   };
 
-  const isClient = currentUser.role === 'CLIENT';
-
-  // Profile modal and status state
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [profileProgress, setProfileProgress] = useState({
-    percentage: 0,
-    completedSteps: 0,
-    totalSteps: 3,
-    isFullyCompleted: false,
-    professionalTitle: '',
-    bio: '',
-    hourlyRate: 0,
+  // State del perfil para la tarjeta izquierda
+  const [profileData, setProfileData] = useState({
+    professionalTitle: 'Desarrollador de Software Multiplataforma | Desarrollo Web | React | Node.js',
+    location: 'León y alrededores, México',
+    avatarUrl: '/avatar-sample.jpg',
   });
 
-  // Post Creator State
-  const [newPostText, setNewPostText] = useState('');
-  const [postCategory, setPostCategory] = useState(isClient ? 'OFERTA_PROYECTO' : 'ACTUALIZACION');
-  const [activeFilter, setActiveFilter] = useState('todos');
+  // Modal para crear publicación
+  const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
+  const [newPostContent, setNewPostContent] = useState('');
+  const [postAttachmentType, setPostAttachmentType] = useState(null);
 
-  // Feed Data State (LinkedIn-style posts)
+  // Feed de publicaciones estilo limpio
   const [posts, setPosts] = useState([
     {
       id: 'p1',
       author: {
-        name: 'TechNova Solutions',
-        headline: 'Estudio de Innovación Digital • Cliente Verificado',
-        avatarText: 'TN',
-        role: 'CLIENT',
-        isVerified: true,
+        name: 'SCCALA – SUPPLY CHAIN CONSULTING & TECH',
+        headline: 'Consultoría e Innovación en Cadenas de Suministro • Cliente Verificado',
+        avatarText: 'SC',
+        verified: true,
       },
-      time: 'Hace 45 min',
-      type: 'OFERTA_PROYECTO',
-      badge: '💼 Oferta con Escrow 100% Asegurado',
-      badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-      content:
-        '🚀 ¡Buscamos Desarrollador Fullstack Senior (React + Node.js/PostgreSQL) para construir una plataforma fintech de microcréditos con pagos Escrow en tiempo real! Contrato dividido en 3 hitos garantizados. ¿Te interesa sumarte al equipo?',
-      projectDetails: {
-        budget: '$3,500 USD',
-        duration: '6 semanas',
-        milestones: '3 Hitos definidos',
-        skills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'Docker'],
-      },
-      likes: 18,
+      time: '1 día',
+      text: '📦 😂 Cuando los costos logísticos se llevan casi todo el presupuesto... y esto fue lo que quedó para la mercancía. ¡Optimizando cadenas de transporte y software en tiempo real con hitos de entrega en FreelancerHub!',
+      imageUrl: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=900&auto=format&fit=crop&q=80',
+      likes: 42,
       liked: false,
-      commentsCount: 6,
-      comments: [
-        {
-          name: 'Daniel Soto',
-          text: '¡Excelente proyecto! Te acabo de enviar mi portafolio y propuesta técnica por mensaje directo.',
-          time: 'Hace 20 min',
-        },
-      ],
+      commentsCount: 9,
+      isFollowing: false,
     },
     {
       id: 'p2',
       author: {
-        name: 'Camila Vega',
-        headline: 'Senior UI/UX & Design Systems Specialist | Ex-MercadoLibre',
-        avatarText: 'CV',
-        role: 'FREELANCER',
-        isVerified: true,
+        name: 'TechNova Studio',
+        headline: 'Estudio de Innovación Digital & Fintech',
+        avatarText: 'TN',
+        verified: true,
       },
-      time: 'Hace 3 horas',
-      type: 'PORTAFOLIO',
-      badge: '🎨 Muestra de Portafolio & Caso de Éxito',
-      badgeColor: 'bg-[#F3EFE6] text-[#8C2C45] border-[#C9B8A6]/60',
-      content:
-        '✨ Acabo de concluir el rediseño integral de la app móvil para Aurora Health. Aumentamos la tasa de retención un +34% implementando un Design System completamente accesible en Figma y React Native. ¡Disponible para nuevos proyectos a partir del próximo lunes!',
-      projectDetails: null,
-      imageUrl:
-        'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1000&q=80',
-      likes: 42,
+      time: 'hace 3 horas',
+      text: '🚀 Buscamos Desarrollador Full Stack (React + Node.js/PostgreSQL) para construir una plataforma con pagos protegidos mediante Escrow. 3 hitos garantizados. ¡Postúlate o envíanos un mensaje directo!',
+      imageUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=900&auto=format&fit=crop&q=80',
+      likes: 68,
       liked: true,
-      commentsCount: 11,
-      comments: [],
-    },
-    {
-      id: 'p3',
-      author: {
-        name: 'Sistema de Seguridad Escrow',
-        headline: 'Notificación oficial de Garantía • FreelanceHub',
-        avatarText: 'FH',
-        role: 'SYSTEM',
-        isVerified: true,
-      },
-      time: 'Hace 5 horas',
-      type: 'ESCROW_UPDATE',
-      badge: '🛡️ Liquidación Exitosa de Hito',
-      badgeColor: 'bg-blue-50 text-blue-800 border-blue-200',
-      content:
-        'El contratante "Studio Alpha" ha aprobado formalmente el Hito #2 del proyecto "Despliegue de Infraestructura Cloud". Se han liberado $1,400.00 USD con satisfacción mutua del 100%. ¡Felicitaciones a ambas partes!',
-      projectDetails: null,
-      likes: 29,
-      liked: false,
-      commentsCount: 2,
-      comments: [],
+      commentsCount: 14,
+      isFollowing: true,
     },
   ]);
-
-  useEffect(() => {
-    loadProfileProgress();
-  }, []);
-
-  const loadProfileProgress = async () => {
-    try {
-      const res = await profileApi.getOnboardingStatus().catch(() => null);
-      if (res?.data) {
-        setProfileProgress(res.data);
-      } else {
-        const saved = localStorage.getItem('fh_local_profile');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          const s1 = Boolean(parsed.professionalTitle && parsed.bio && parsed.hourlyRate);
-          const s2 = Boolean(parsed.portfolioItems && parsed.portfolioItems.length > 0);
-          const s3 = Boolean(parsed.skills && parsed.skills.length > 0);
-          const count = [s1, s2, s3].filter(Boolean).length;
-          setProfileProgress({
-            percentage: Math.round((count / 3) * 100),
-            completedSteps: count,
-            totalSteps: 3,
-            isFullyCompleted: count === 3,
-            professionalTitle: parsed.professionalTitle || '',
-            bio: parsed.bio || '',
-            hourlyRate: parsed.hourlyRate || 0,
-          });
-        }
-      }
-    } catch {
-      // Manejo silencioso
-    }
-  };
-
-  const handleCreatePost = (e) => {
-    e.preventDefault();
-    if (!newPostText.trim()) return;
-
-    const newPost = {
-      id: `p_${Date.now()}`,
-      author: {
-        name: currentUser.fullName,
-        headline:
-          profileProgress.professionalTitle ||
-          (isClient ? 'Cliente / Contratante Verificado' : 'Freelancer Profesional'),
-        avatarText: currentUser.fullName.charAt(0).toUpperCase(),
-        role: currentUser.role,
-        isVerified: true,
-      },
-      time: 'Justo ahora',
-      type: postCategory,
-      badge:
-        postCategory === 'OFERTA_PROYECTO'
-          ? '💼 Oferta con Escrow'
-          : '🚀 Publicación en el Feed',
-      badgeColor: 'bg-[#F3EFE6] text-[#8C2C45] border-[#C9B8A6]/60',
-      content: newPostText.trim(),
-      projectDetails:
-        postCategory === 'OFERTA_PROYECTO'
-          ? {
-              budget: '$1,500 - $3,000 USD',
-              duration: 'Por definir',
-              milestones: 'Garantizado por Escrow',
-              skills: ['Fullstack', 'Remoto'],
-            }
-          : null,
-      likes: 1,
-      liked: true,
-      commentsCount: 0,
-      comments: [],
-    };
-
-    setPosts([newPost, ...posts]);
-    setNewPostText('');
-  };
-
-  const handleLikePost = (postId) => {
-    setPosts((prev) =>
-      prev.map((p) => {
-        if (p.id === postId) {
-          const isLiked = p.liked;
-          return {
-            ...p,
-            liked: !isLiked,
-            likes: isLiked ? p.likes - 1 : p.likes + 1,
-          };
-        }
-        return p;
-      })
-    );
-  };
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
 
-  // Recommended opportunities on right sidebar
-  const recommendedProjects = [
-    {
-      id: 'rp1',
-      title: 'Desarrollo de MVP SaaS con Pagos Stripe',
-      company: 'Fintech Aurora',
-      budget: '$2,800 USD',
-      tags: ['Next.js', 'PostgreSQL', 'Stripe'],
-      proposals: '4 postulaciones',
-    },
-    {
-      id: 'rp2',
-      title: 'Diseño UX/UI de App Móvil Logística',
-      company: 'Logística Express',
-      budget: '$1,600 USD',
-      tags: ['Figma', 'Mobile UX'],
-      proposals: '7 postulaciones',
-    },
-    {
-      id: 'rp3',
-      title: 'Integración de Agente Inteligente con LLM',
-      company: 'DataFlow AI',
-      budget: '$3,200 USD',
-      tags: ['Python', 'LangChain', 'FastAPI'],
-      proposals: '2 postulaciones',
-    },
-  ];
+  useEffect(() => {
+    fetchUserData();
+  }, []);
 
-  // Filter posts
-  const filteredPosts = posts.filter((post) => {
-    if (activeFilter === 'proyectos') return post.type === 'OFERTA_PROYECTO';
-    if (activeFilter === 'portafolios') return post.type === 'PORTAFOLIO';
-    if (activeFilter === 'escrow') return post.type === 'ESCROW_UPDATE';
-    return true;
-  });
+  const fetchUserData = async () => {
+    try {
+      const res = await profileApi.getMyProfile().catch(() => null);
+      if (res?.data) {
+        setProfileData((prev) => ({
+          ...prev,
+          professionalTitle: res.data.professionalTitle || prev.professionalTitle,
+          location: res.data.location || prev.location,
+          avatarUrl: res.data.avatarUrl || prev.avatarUrl,
+        }));
+      }
+    } catch {
+      // Manejo silencioso
+    }
+  };
+
+  const handleLike = (postId) => {
+    setPosts((prev) =>
+      prev.map((post) => {
+        if (post.id === postId) {
+          const newLiked = !post.liked;
+          return {
+            ...post,
+            liked: newLiked,
+            likes: newLiked ? post.likes + 1 : post.likes - 1,
+          };
+        }
+        return post;
+      })
+    );
+  };
+
+  const handleCreatePost = (e) => {
+    e.preventDefault();
+    if (!newPostContent.trim()) return;
+
+    const newPost = {
+      id: `p-${Date.now()}`,
+      author: {
+        name: currentUser.fullName,
+        headline: profileData.professionalTitle,
+        avatarText: currentUser.fullName.charAt(0),
+        verified: true,
+      },
+      time: 'Ahora mismo',
+      text: newPostContent.trim(),
+      imageUrl: null,
+      likes: 1,
+      liked: true,
+      commentsCount: 0,
+      isFollowing: false,
+    };
+
+    setPosts([newPost, ...posts]);
+    setNewPostContent('');
+    setIsCreatePostModalOpen(false);
+  };
 
   return (
-    <div className="min-h-screen bg-[#f3efe8] text-[#2b1b1e] flex flex-col selection:bg-[#8C2C45]/20 selection:text-[#5A0F24]">
-      {/* ========================================================
-          1. LINKEDIN-STYLE TOPBAR
-      ======================================================== */}
-      <header className="sticky top-0 z-40 bg-white border-b border-[#C9B8A6]/50 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-          {/* Logo & Search Bar */}
+    <div className="min-h-screen bg-[#f6f2ee] text-[#2b1b1e] font-sans antialiased">
+      {/* NAVBAR SUPERIOR ESTILO LINKEDIN (PALETA WINE & CREAM) */}
+      <header className="sticky top-0 z-40 bg-white border-b border-[#C9B8A6]/40 shadow-xs">
+        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
+          {/* Logo y Buscador */}
           <div className="flex items-center gap-3 flex-1 max-w-md">
-            <Link to="/dashboard" className="flex items-center gap-2 shrink-0 group">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#8C2C45] to-[#5A0F24] flex items-center justify-center text-white shadow-xs group-hover:scale-105 transition-transform">
-                <ShieldCheck className="w-5 h-5 text-white" />
+            <Link to="/dashboard" className="flex items-center gap-2 group">
+              <div className="w-9 h-9 rounded-lg bg-[#8C2C45] flex items-center justify-center text-white font-black text-xl shadow-xs group-hover:bg-[#5A0F24] transition">
+                FH
               </div>
-              <span className="hidden sm:inline-block text-lg font-extrabold tracking-tight text-[#5A0F24]">
-                Freelance<span className="text-[#8C2C45]">Hub</span>
-              </span>
             </Link>
 
-            {/* Global Search Bar */}
-            <div className="relative w-full max-w-xs">
-              <Search className="w-4 h-4 text-[#8C2C45] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#C9B8A6]" />
               <input
                 type="text"
-                placeholder="Buscar proyectos, habilidades, colegas..."
-                className="w-full pl-9 pr-3 py-1.5 bg-[#F3EFE6]/70 border border-[#C9B8A6]/50 rounded-xl text-xs text-[#2b1b1e] placeholder-[#9a868a] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#8C2C45]/20 transition-all shadow-2xs"
+                placeholder="Buscar..."
+                className="w-full bg-[#F3EFE6] text-sm text-[#2b1b1e] placeholder-[#5A0F24]/50 rounded-lg pl-9 pr-4 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#8C2C45] focus:bg-white transition border border-[#C9B8A6]/30"
               />
             </div>
           </div>
 
-          {/* Navigation Tabs (LinkedIn Style) */}
-          <nav className="flex items-center gap-1 sm:gap-4 md:gap-6 text-[#5A0F24]/75">
-            {/* Inicio (Active) */}
+          {/* Menú de Navegación Limpio */}
+          <nav className="flex items-center gap-1 sm:gap-6">
             <Link
               to="/dashboard"
-              className="flex flex-col items-center justify-center px-2 py-1 text-[#8C2C45] border-b-2 border-[#8C2C45] transition-colors"
+              className="flex flex-col items-center justify-center text-[#8C2C45] border-b-2 border-[#8C2C45] text-[11px] font-bold py-1 px-2"
             >
-              <Home className="w-5 h-5" />
-              <span className="text-[10px] font-bold hidden sm:inline-block mt-0.5">Inicio</span>
+              <Home className="w-5 h-5 mb-0.5" />
+              <span>Inicio</span>
             </Link>
-
-            {/* Proyectos */}
-            <button
-              type="button"
-              onClick={() => setActiveFilter('proyectos')}
-              className="flex flex-col items-center justify-center px-2 py-1 hover:text-[#8C2C45] transition-colors cursor-pointer"
+            <Link
+              to="/onboarding"
+              className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition"
             >
-              <Briefcase className="w-5 h-5" />
-              <span className="text-[10px] font-medium hidden sm:inline-block mt-0.5">Proyectos</span>
+              <Users className="w-5 h-5 mb-0.5" />
+              <span>Mi red</span>
+            </Link>
+            <Link
+              to="/dashboard"
+              className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition"
+            >
+              <Briefcase className="w-5 h-5 mb-0.5" />
+              <span>Proyectos</span>
+            </Link>
+            <button className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition cursor-pointer">
+              <MessageSquare className="w-5 h-5 mb-0.5" />
+              <span>Mensajes</span>
+            </button>
+            <button className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition cursor-pointer">
+              <Bell className="w-5 h-5 mb-0.5" />
+              <span>Avisos</span>
             </button>
 
-            {/* Mensajes */}
-            <button
-              type="button"
-              onClick={() => alert('Bandeja de mensajes en tiempo real disponible en el próximo release.')}
-              className="flex flex-col items-center justify-center px-2 py-1 hover:text-[#8C2C45] transition-colors relative cursor-pointer"
-            >
-              <MessageSquare className="w-5 h-5" />
-              <span className="w-2 h-2 rounded-full bg-[#8C2C45] absolute top-1 right-2 ring-1 ring-white" />
-              <span className="text-[10px] font-medium hidden sm:inline-block mt-0.5">Mensajes</span>
-            </button>
-
-            {/* Billetera / Escrow */}
-            <button
-              type="button"
-              onClick={() => setActiveFilter('escrow')}
-              className="flex flex-col items-center justify-center px-2 py-1 hover:text-[#8C2C45] transition-colors cursor-pointer"
-            >
-              <Lock className="w-5 h-5 text-emerald-700" />
-              <span className="text-[10px] font-medium hidden sm:inline-block mt-0.5">Escrow</span>
-            </button>
-
-            {/* Notificaciones */}
-            <button
-              type="button"
-              onClick={() => alert('Tienes 3 notificaciones nuevas de proyectos guardados.')}
-              className="flex flex-col items-center justify-center px-2 py-1 hover:text-[#8C2C45] transition-colors relative cursor-pointer"
-            >
-              <Bell className="w-5 h-5" />
-              <span className="w-2 h-2 rounded-full bg-amber-500 absolute top-1 right-2 ring-1 ring-white" />
-              <span className="text-[10px] font-medium hidden sm:inline-block mt-0.5">Avisos</span>
-            </button>
-
-            {/* Avatar Dropdown / User Profile */}
-            <div className="flex items-center gap-1.5 pl-2 border-l border-[#C9B8A6]/40">
+            {/* Avatar Dropdown (Yo ▾ con Cerrar sesión) */}
+            <div className="relative">
               <button
                 type="button"
-                onClick={() => setIsProfileModalOpen(true)}
-                className="flex flex-col items-center justify-center px-1 py-1 hover:text-[#8C2C45] cursor-pointer group"
-                title="Editar Perfil"
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#8C2C45] text-[11px] font-semibold py-1 px-2 group cursor-pointer"
+                title="Cuenta y opciones"
               >
-                <div className="w-7 h-7 rounded-full bg-[#8C2C45] text-white flex items-center justify-center text-xs font-bold shadow-2xs group-hover:ring-2 group-hover:ring-[#8C2C45]/30">
-                  {currentUser.fullName ? currentUser.fullName.charAt(0).toUpperCase() : 'U'}
+                <img
+                  src={profileData.avatarUrl}
+                  alt="Yo"
+                  className="w-5 h-5 rounded-full object-cover ring-1 ring-[#C9B8A6] group-hover:ring-[#8C2C45]"
+                  onError={(e) => {
+                    e.target.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+                  }}
+                />
+                <span>Yo ▾</span>
+              </button>
+
+              {/* Menú desplegable */}
+              {isUserMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-[#C9B8A6]/40 p-3 z-50 animate-in fade-in duration-150">
+                  <div className="flex items-center gap-2.5 pb-3 border-b border-[#C9B8A6]/20">
+                    <img
+                      src={profileData.avatarUrl}
+                      alt="Yo"
+                      className="w-10 h-10 rounded-full object-cover ring-1 ring-[#C9B8A6]"
+                      onError={(e) => {
+                        e.target.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-bold text-[#5A0F24] truncate">{currentUser.fullName}</h4>
+                      <p className="text-[10px] text-[#2b1b1e]/60 truncate">{profileData.professionalTitle}</p>
+                    </div>
+                  </div>
+
+                  <Link
+                    to="/profile"
+                    onClick={() => setIsUserMenuOpen(false)}
+                    className="mt-2.5 block w-full text-center py-1.5 px-3 rounded-xl border border-[#8C2C45] text-[#8C2C45] hover:bg-[#F3EFE6] text-xs font-bold transition"
+                  >
+                    Ver perfil
+                  </Link>
+
+                  <div className="pt-2 mt-2 border-t border-[#C9B8A6]/20">
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-xs font-bold text-red-700 hover:bg-red-50 transition cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4 text-red-600" />
+                      <span>Cerrar sesión</span>
+                    </button>
+                  </div>
                 </div>
-                <span className="text-[10px] font-bold text-[#5A0F24] hidden sm:inline-block mt-0.5">
-                  Yo ▾
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="p-1.5 rounded-lg text-[#5A0F24]/60 hover:text-red-700 hover:bg-red-50 transition-colors cursor-pointer ml-1"
-                title="Cerrar Sesión"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
+              )}
             </div>
           </nav>
         </div>
       </header>
 
-      {/* ========================================================
-          2. MAIN 3-COLUMN LINKEDIN LAYOUT
-      ======================================================== */}
-      <div className="max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
-          {/* ====================================================
-              COLUMNA IZQUIERDA: PERFIL & SHORTCUTS (3 cols)
-          ==================================================== */}
-          <aside className="md:col-span-4 lg:col-span-3 space-y-4">
-            {/* Tarjeta de Perfil Resumida */}
-            <div className="bg-white rounded-2xl border border-[#C9B8A6]/50 shadow-xs overflow-hidden">
-              {/* Cover Banner con paleta vino */}
-              <div className="h-16 bg-gradient-to-r from-[#5A0F24] via-[#8C2C45] to-[#C68A8F] relative">
-                <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/20 backdrop-blur-md text-[9px] font-bold text-white uppercase tracking-wider">
-                  {isClient ? 'Cliente' : 'Freelancer'}
-                </div>
-              </div>
+      {/* CONTENIDO PRINCIPAL EN 3 COLUMNAS LIMPIAS */}
+      <main className="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+        {/* ========================================================= */}
+        {/* COLUMNA IZQUIERDA: PERFIL RESUMIDO & SHORTCUTS (3 COLS) */}
+        {/* ========================================================= */}
+        <aside className="md:col-span-3 space-y-3">
+          {/* TARJETA 1: PERFIL RESUMIDO (IDENTICA A LA CAPTURA) */}
+          <div className="bg-white rounded-2xl border border-[#C9B8A6]/40 overflow-hidden shadow-xs">
+            {/* Banner superior suave */}
+            <div className="h-16 bg-linear-to-r from-[#5A0F24] via-[#8C2C45] to-[#C68A8F] relative" />
 
-              {/* Avatar superpuesto */}
-              <div className="px-4 pb-4 text-center relative -mt-8">
-                <div
-                  onClick={() => setIsProfileModalOpen(true)}
-                  className="w-16 h-16 rounded-full bg-white p-1 mx-auto cursor-pointer group shadow-sm inline-block"
-                >
-                  <div className="w-full h-full rounded-full bg-gradient-to-br from-[#8C2C45] to-[#5A0F24] text-white flex items-center justify-center font-bold text-lg group-hover:scale-105 transition-transform">
-                    {currentUser.fullName ? currentUser.fullName.charAt(0).toUpperCase() : 'U'}
-                  </div>
+            {/* Contenido con avatar superpuesto */}
+            <div className="px-4 pb-4 text-center relative -mt-9">
+              <Link to="/profile" className="inline-block group">
+                <div className="w-18 h-18 rounded-full border-2 border-white shadow-sm bg-white overflow-hidden mx-auto">
+                  <img
+                    src={profileData.avatarUrl}
+                    alt={currentUser.fullName}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    onError={(e) => {
+                      e.target.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80';
+                    }}
+                  />
                 </div>
+              </Link>
 
-                <h3
-                  onClick={() => setIsProfileModalOpen(true)}
-                  className="text-sm font-extrabold text-[#5A0F24] mt-2 hover:underline cursor-pointer"
-                >
-                  {currentUser.fullName}
+              {/* Nombre y titular */}
+              <Link to="/profile" className="block mt-2 group">
+                <h3 className="text-sm font-extrabold text-[#5A0F24] group-hover:underline flex items-center justify-center gap-1">
+                  <span>{currentUser.fullName}</span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#8C2C45] fill-[#F3EFE6]" />
                 </h3>
-                <p className="text-[11px] text-[#5A0F24]/75 mt-0.5 leading-snug line-clamp-2">
-                  {profileProgress.professionalTitle ||
-                    (isClient
-                      ? 'Buscando el mejor talento independiente'
-                      : 'Profesional Independiente • Completa tu título')}
-                </p>
-
-                {/* Progress bar si no está al 100% */}
-                {!isClient && profileProgress.percentage < 100 && (
-                  <div className="mt-3 p-2.5 rounded-xl bg-[#F3EFE6] border border-[#C9B8A6]/40 text-left">
-                    <div className="flex items-center justify-between text-[10px] font-bold text-[#5A0F24] mb-1">
-                      <span>Perfil {profileProgress.percentage}% listo</span>
-                      <Link to="/onboarding" className="text-[#8C2C45] hover:underline">
-                        Completar
-                      </Link>
-                    </div>
-                    <div className="w-full bg-[#E8DEDA] h-1.5 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-[#8C2C45] to-[#5A0F24]"
-                        style={{ width: `${profileProgress.percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Estadísticas de Perfil */}
-              <div className="border-t border-[#C9B8A6]/30 px-4 py-3 text-xs space-y-2">
-                <div className="flex items-center justify-between text-[#5A0F24]/80">
-                  <span className="text-[11px]">Visualizaciones de perfil</span>
-                  <span className="font-bold text-[#8C2C45]">142</span>
-                </div>
-                <div className="flex items-center justify-between text-[#5A0F24]/80">
-                  <span className="text-[11px]">Impresiones de propuestas</span>
-                  <span className="font-bold text-[#8C2C45]">89</span>
-                </div>
-                <div className="flex items-center justify-between text-[#5A0F24]/80 pt-1 border-t border-[#C9B8A6]/20">
-                  <span className="text-[11px] flex items-center gap-1 font-semibold text-emerald-800">
-                    <Lock className="w-3 h-3 text-emerald-600" /> Saldo en Escrow
-                  </span>
-                  <span className="font-extrabold text-emerald-700">$2,450 USD</span>
-                </div>
-              </div>
-
-              {/* Botón para editar perfil */}
-              <div className="p-3 bg-[#F3EFE6]/50 border-t border-[#C9B8A6]/30">
-                <button
-                  type="button"
-                  onClick={() => setIsProfileModalOpen(true)}
-                  className="w-full py-1.5 rounded-xl bg-white border border-[#C9B8A6]/50 text-xs font-bold text-[#5A0F24] hover:bg-[#F3EFE6] transition-colors flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
-                >
-                  <FolderGit2 className="w-3.5 h-3.5 text-[#8C2C45]" />
-                  <span>Editar Mi Perfil & Skills</span>
-                </button>
-              </div>
+              </Link>
+              <p className="text-[11px] text-[#2b1b1e]/80 mt-1 line-clamp-2 leading-snug font-normal">
+                {profileData.professionalTitle}
+              </p>
+              <p className="text-[10px] text-[#C9B8A6] mt-0.5 flex items-center justify-center gap-0.5">
+                <MapPin className="w-2.5 h-2.5 text-[#8C2C45]" />
+                {profileData.location}
+              </p>
             </div>
 
-            {/* Accesos Rápidos y Marcadores */}
-            <div className="bg-white rounded-2xl border border-[#C9B8A6]/50 p-4 shadow-xs space-y-2 text-xs">
-              <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#5A0F24]/70 mb-2">
-                Accesos Directos
-              </h4>
-              <button
-                type="button"
-                onClick={() => setActiveFilter('proyectos')}
-                className="w-full flex items-center gap-2 text-left py-1.5 px-2 rounded-lg hover:bg-[#F3EFE6] text-[#5A0F24] font-medium transition-colors"
-              >
-                <Bookmark className="w-3.5 h-3.5 text-[#8C2C45]" />
-                <span>Proyectos Guardados (3)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveFilter('escrow')}
-                className="w-full flex items-center gap-2 text-left py-1.5 px-2 rounded-lg hover:bg-[#F3EFE6] text-[#5A0F24] font-medium transition-colors"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Contratos con Escrow Activo</span>
-              </button>
+            {/* Sección Promoción / Escrow */}
+            <div className="border-t border-[#C9B8A6]/25 p-3 text-[11px] bg-[#F3EFE6]/40 text-left">
+              <p className="text-[#2b1b1e]/75 leading-tight">
+                Consigue contratos más rápido con protección Escrow en cada hito
+              </p>
               <Link
-                to="/onboarding"
-                className="w-full flex items-center gap-2 text-left py-1.5 px-2 rounded-lg hover:bg-[#F3EFE6] text-[#5A0F24] font-medium transition-colors"
+                to="/profile"
+                className="font-bold text-[#8C2C45] hover:underline mt-1 inline-flex items-center gap-1"
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                <span>Paso a Paso de Onboarding</span>
+                <span>🛡️ Saldo Asegurado en Escrow</span>
               </Link>
             </div>
-          </aside>
+          </div>
 
-          {/* ====================================================
-              COLUMNA CENTRAL: FEED PRINCIPAL (6 cols)
-          ==================================================== */}
-          <main className="md:col-span-8 lg:col-span-6 space-y-4">
-            {/* Box Crear Publicación (LinkedIn Style) */}
-            <div className="bg-white rounded-2xl border border-[#C9B8A6]/50 p-4 shadow-xs space-y-3">
-              <form onSubmit={handleCreatePost}>
+          {/* TARJETA 2: ACCESOS DIRECTOS LIMPIOS (GUARDADOS, GRUPOS, EVENTOS) */}
+          <div className="bg-white rounded-2xl border border-[#C9B8A6]/40 p-3 shadow-xs space-y-1 text-xs font-semibold text-[#5A0F24]">
+            <button
+              onClick={() => alert('Elementos guardados')}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[#F3EFE6] transition text-left cursor-pointer"
+            >
+              <Bookmark className="w-4 h-4 text-[#8C2C45]" />
+              <span>Elementos guardados</span>
+            </button>
+            <button
+              onClick={() => alert('Grupos')}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[#F3EFE6] transition text-left cursor-pointer"
+            >
+              <Users className="w-4 h-4 text-[#8C2C45]" />
+              <span>Grupos de desarrollo</span>
+            </button>
+            <button
+              onClick={() => alert('Newsletters')}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[#F3EFE6] transition text-left cursor-pointer"
+            >
+              <Newspaper className="w-4 h-4 text-[#8C2C45]" />
+              <span>Newsletters técnicas</span>
+            </button>
+            <button
+              onClick={() => alert('Eventos')}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[#F3EFE6] transition text-left cursor-pointer"
+            >
+              <Calendar className="w-4 h-4 text-[#8C2C45]" />
+              <span>Eventos & Charlas</span>
+            </button>
+          </div>
+        </aside>
+
+        {/* ========================================================= */}
+        {/* COLUMNA CENTRAL: FEED & PUBLICADOR LIMPIO (6 COLS) */}
+        {/* ========================================================= */}
+        <section className="md:col-span-6 space-y-4">
+          {/* CAJA CREADORA DE PUBLICACIÓN (IDÉNTICA A LA CAPTURA) */}
+          <div className="bg-white rounded-2xl border border-[#C9B8A6]/40 p-4 shadow-xs">
+            <div className="flex items-center gap-3">
+              <img
+                src={profileData.avatarUrl}
+                alt="Yo"
+                className="w-11 h-11 rounded-full object-cover ring-1 ring-[#C9B8A6]"
+                onError={(e) => {
+                  e.target.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setIsCreatePostModalOpen(true)}
+                className="flex-1 text-left px-5 py-2.5 bg-white border border-[#C9B8A6]/60 hover:bg-[#F3EFE6] rounded-full text-xs sm:text-sm font-medium text-[#2b1b1e]/60 transition cursor-pointer"
+              >
+                Crear publicación
+              </button>
+            </div>
+
+            {/* BOTONES LIMPIOS: VÍDEO, FOTO, ESCRIBIR ARTÍCULO */}
+            <div className="flex items-center justify-around mt-3 pt-2.5 border-t border-[#C9B8A6]/20">
+              <button
+                type="button"
+                onClick={() => {
+                  setPostAttachmentType('video');
+                  setIsCreatePostModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-[#F3EFE6] text-xs font-semibold text-[#5A0F24] transition cursor-pointer"
+              >
+                <Video className="w-5 h-5 text-emerald-600" />
+                <span>Vídeo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPostAttachmentType('foto');
+                  setIsCreatePostModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-[#F3EFE6] text-xs font-semibold text-[#5A0F24] transition cursor-pointer"
+              >
+                <ImageIcon className="w-5 h-5 text-[#8C2C45]" />
+                <span>Foto</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPostAttachmentType('articulo');
+                  setIsCreatePostModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-[#F3EFE6] text-xs font-semibold text-[#5A0F24] transition cursor-pointer"
+              >
+                <FileText className="w-5 h-5 text-amber-700" />
+                <span>Escribir artículo</span>
+              </button>
+            </div>
+          </div>
+
+          {/* LÍNEA SEPARADORA DE ORDENAR */}
+          <div className="flex items-center justify-between text-xs text-[#2b1b1e]/60 px-1">
+            <hr className="flex-1 border-[#C9B8A6]/30 mr-3" />
+            <button className="flex items-center gap-1 font-semibold hover:text-[#8C2C45] transition cursor-pointer">
+              <span>Ordenar por: <strong className="text-[#5A0F24]">Principales</strong></span>
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* LISTA DE PUBLICACIONES DEL FEED */}
+          {posts.map((post) => (
+            <article
+              key={post.id}
+              className="bg-white rounded-2xl border border-[#C9B8A6]/40 overflow-hidden shadow-xs"
+            >
+              {/* Cabecera del autor */}
+              <div className="p-4 pb-2 flex items-start justify-between">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#8C2C45] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs">
-                    {currentUser.fullName ? currentUser.fullName.charAt(0).toUpperCase() : 'U'}
+                  <div className="w-10 h-10 rounded-full bg-[#8C2C45] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                    {post.author.avatarText}
                   </div>
-                  <div className="flex-1">
-                    <textarea
-                      rows={2}
-                      value={newPostText}
-                      onChange={(e) => setNewPostText(e.target.value)}
-                      placeholder={
-                        isClient
-                          ? 'Publica un proyecto o requerimiento con pago asegurado por Escrow...'
-                          : 'Comparte un avance, muestra de portafolio o disponibilidad para proyectos...'
-                      }
-                      className="w-full p-3 bg-[#F3EFE6]/50 border border-[#C9B8A6]/40 rounded-xl text-xs sm:text-sm text-[#2b1b1e] placeholder-[#9a868a] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#8C2C45]/20 transition-all resize-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Post Action Buttons */}
-                <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-[#C9B8A6]/30 mt-3">
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPostCategory(isClient ? 'OFERTA_PROYECTO' : 'PORTAFOLIO')
-                      }
-                      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                        postCategory === 'OFERTA_PROYECTO' || postCategory === 'PORTAFOLIO'
-                          ? 'bg-[#8C2C45] text-white'
-                          : 'text-[#5A0F24]/75 hover:bg-[#F3EFE6]'
-                      }`}
-                    >
-                      <Briefcase className="w-3.5 h-3.5" />
-                      <span>{isClient ? 'Oferta de Proyecto' : 'Portafolio'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setPostCategory('ACTUALIZACION')}
-                      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                        postCategory === 'ACTUALIZACION'
-                          ? 'bg-[#8C2C45] text-white'
-                          : 'text-[#5A0F24]/75 hover:bg-[#F3EFE6]'
-                      }`}
-                    >
-                      <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
-                      <span>Foto / Imagen</span>
-                    </button>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    disabled={!newPostText.trim()}
-                    className="py-1.5 px-4 bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-xs disabled:opacity-50"
-                  >
-                    <span>Publicar</span>
-                    <Send className="w-3 h-3" />
-                  </Button>
-                </div>
-              </form>
-            </div>
-
-            {/* Feed Filters */}
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-bold text-[#5A0F24]/80">
-                <button
-                  type="button"
-                  onClick={() => setActiveFilter('todos')}
-                  className={`px-3 py-1 rounded-full transition-colors cursor-pointer whitespace-nowrap ${
-                    activeFilter === 'todos'
-                      ? 'bg-[#8C2C45] text-white shadow-2xs'
-                      : 'bg-white border border-[#C9B8A6]/40 hover:bg-[#F3EFE6]'
-                  }`}
-                >
-                  Todo el Feed
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveFilter('proyectos')}
-                  className={`px-3 py-1 rounded-full transition-colors cursor-pointer whitespace-nowrap ${
-                    activeFilter === 'proyectos'
-                      ? 'bg-[#8C2C45] text-white shadow-2xs'
-                      : 'bg-white border border-[#C9B8A6]/40 hover:bg-[#F3EFE6]'
-                  }`}
-                >
-                  💼 Ofertas de Proyectos
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveFilter('portafolios')}
-                  className={`px-3 py-1 rounded-full transition-colors cursor-pointer whitespace-nowrap ${
-                    activeFilter === 'portafolios'
-                      ? 'bg-[#8C2C45] text-white shadow-2xs'
-                      : 'bg-white border border-[#C9B8A6]/40 hover:bg-[#F3EFE6]'
-                  }`}
-                >
-                  🎨 Portafolios & Muestras
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveFilter('escrow')}
-                  className={`px-3 py-1 rounded-full transition-colors cursor-pointer whitespace-nowrap ${
-                    activeFilter === 'escrow'
-                      ? 'bg-emerald-700 text-white shadow-2xs'
-                      : 'bg-white border border-[#C9B8A6]/40 hover:bg-[#F3EFE6]'
-                  }`}
-                >
-                  🛡️ Hitos Escrow
-                </button>
-              </div>
-            </div>
-
-            {/* Listado de Posts / Feed */}
-            <div className="space-y-4">
-              {filteredPosts.map((post) => (
-                <article
-                  key={post.id}
-                  className="bg-white rounded-2xl border border-[#C9B8A6]/50 shadow-xs overflow-hidden"
-                >
-                  {/* Post Header */}
-                  <div className="p-4 pb-3 flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#8C2C45] to-[#5A0F24] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs">
-                        {post.author.avatarText}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h4 className="text-xs sm:text-sm font-extrabold text-[#5A0F24] hover:underline cursor-pointer">
-                            {post.author.name}
-                          </h4>
-                          {post.author.isVerified && (
-                            <span title="Usuario Verificado">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 fill-blue-50" />
-                            </span>
-                          )}
-                          <span className="text-[10px] text-[#9a868a]">• {post.time}</span>
-                        </div>
-                        <p className="text-[11px] text-[#5A0F24]/70 leading-snug">
-                          {post.author.headline}
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="text-[#9a868a] hover:text-[#5A0F24] p-1 rounded-lg hover:bg-[#F3EFE6] transition-colors"
-                    >
-                      <MoreHorizontal className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* Badge de tipo de publicación */}
-                  {post.badge && (
-                    <div className="px-4 pb-2">
-                      <span
-                        className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${post.badgeColor}`}
+                  <div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h4 className="text-xs sm:text-sm font-bold text-[#5A0F24] leading-tight">
+                        {post.author.name}
+                      </h4>
+                      {post.author.verified && (
+                        <ShieldCheck className="w-3.5 h-3.5 text-[#8C2C45] fill-[#F3EFE6]" />
+                      )}
+                      <button
+                        onClick={() => {
+                          setPosts((prev) =>
+                            prev.map((p) =>
+                              p.id === post.id ? { ...p, isFollowing: !p.isFollowing } : p
+                            )
+                          );
+                        }}
+                        className="text-xs font-bold text-[#8C2C45] hover:underline cursor-pointer ml-1"
                       >
-                        {post.badge}
-                      </span>
+                        {post.isFollowing ? '• Siguiendo' : '+ Seguir'}
+                      </button>
                     </div>
-                  )}
-
-                  {/* Post Text Content */}
-                  <div className="px-4 pb-3">
-                    <p className="text-xs sm:text-sm text-[#2b1b1e] leading-relaxed whitespace-pre-line">
-                      {post.content}
+                    <p className="text-[11px] text-[#2b1b1e]/60 line-clamp-1">
+                      {post.author.headline}
                     </p>
+                    <span className="text-[10px] text-[#C9B8A6]">{post.time}</span>
                   </div>
+                </div>
 
-                  {/* Optional Project Card Widget inside Post */}
-                  {post.projectDetails && (
-                    <div className="mx-4 mb-3 p-3.5 rounded-xl bg-[#F3EFE6]/70 border border-[#C9B8A6]/50 space-y-2.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-[#5A0F24]">
-                          Presupuesto Protegido:
-                        </span>
-                        <span className="font-black text-emerald-800 text-sm">
-                          {post.projectDetails.budget}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {post.projectDetails.skills.map((sk) => (
-                          <span
-                            key={sk}
-                            className="px-2 py-0.5 rounded-md bg-white border border-[#C9B8A6]/40 text-[10px] font-semibold text-[#8C2C45]"
-                          >
-                            {sk}
-                          </span>
-                        ))}
-                      </div>
-                      <div className="pt-1 flex items-center justify-between text-[11px]">
-                        <span className="text-[#5A0F24]/70">
-                          {post.projectDetails.duration} • {post.projectDetails.milestones}
-                        </span>
-                        <Button
-                          type="button"
-                          onClick={() => alert(`Postulación enviada a ${post.author.name}`)}
-                          className="py-1 px-3 bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-[11px]"
-                        >
-                          <span>Enviar Propuesta</span>
-                          <Send className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Optional Post Image */}
-                  {post.imageUrl && (
-                    <div className="w-full bg-[#f6f2ee] overflow-hidden max-h-72 border-y border-[#C9B8A6]/30">
-                      <img
-                        src={post.imageUrl}
-                        alt="Muestra de proyecto"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-
-                  {/* Post Stats (Likes and Comments Count) */}
-                  <div className="px-4 py-2 border-t border-[#C9B8A6]/30 flex items-center justify-between text-[11px] text-[#5A0F24]/70">
-                    <span className="flex items-center gap-1">
-                      <span className="w-4 h-4 rounded-full bg-[#8C2C45] text-white flex items-center justify-center text-[9px]">
-                        👍
-                      </span>
-                      {post.likes} reacciones
-                    </span>
-                    <span>{post.commentsCount} comentarios</span>
-                  </div>
-
-                  {/* Post Actions (Like, Comment, Share, Save) */}
-                  <div className="px-2 py-1 border-t border-[#C9B8A6]/30 grid grid-cols-4 text-xs font-semibold text-[#5A0F24]/75">
-                    <button
-                      type="button"
-                      onClick={() => handleLikePost(post.id)}
-                      className={`flex items-center justify-center gap-1.5 py-2 rounded-xl transition-colors cursor-pointer ${
-                        post.liked
-                          ? 'text-[#8C2C45] font-bold bg-[#F3EFE6]/60'
-                          : 'hover:bg-[#F3EFE6] hover:text-[#8C2C45]'
-                      }`}
-                    >
-                      <ThumbsUp className="w-4 h-4" />
-                      <span>Me gusta</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        alert('Escribe tu comentario en la publicación.')
-                      }
-                      className="flex items-center justify-center gap-1.5 py-2 rounded-xl hover:bg-[#F3EFE6] hover:text-[#8C2C45] transition-colors cursor-pointer"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      <span>Comentar</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        alert('Enlace copiado al portapapeles para compartir.')
-                      }
-                      className="flex items-center justify-center gap-1.5 py-2 rounded-xl hover:bg-[#F3EFE6] hover:text-[#8C2C45] transition-colors cursor-pointer"
-                    >
-                      <Share2 className="w-4 h-4" />
-                      <span>Compartir</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => alert('Proyecto guardado en tus marcadores.')}
-                      className="flex items-center justify-center gap-1.5 py-2 rounded-xl hover:bg-[#F3EFE6] hover:text-[#8C2C45] transition-colors cursor-pointer"
-                    >
-                      <Bookmark className="w-4 h-4" />
-                      <span>Guardar</span>
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </main>
-
-          {/* ====================================================
-              COLUMNA DERECHA: NOTICIAS & OPORTUNIDADES (3 cols)
-          ==================================================== */}
-          <aside className="hidden lg:block lg:col-span-3 space-y-4">
-            {/* Oportunidades Recomendadas para ti */}
-            <div className="bg-white rounded-2xl border border-[#C9B8A6]/50 p-4 shadow-xs space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-[#C9B8A6]/30">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[#5A0F24]">
-                  Oportunidades para ti
-                </h3>
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <div className="flex items-center gap-1 text-[#C9B8A6]">
+                  <button className="p-1 hover:text-[#5A0F24] rounded-full transition cursor-pointer">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
-              <div className="space-y-3">
-                {recommendedProjects.map((proj) => (
-                  <div
-                    key={proj.id}
-                    className="p-2.5 rounded-xl border border-[#C9B8A6]/30 bg-[#f6f2ee]/50 hover:bg-[#F3EFE6] transition-colors space-y-1.5"
+              {/* Texto de la publicación */}
+              <div className="px-4 py-2 text-xs sm:text-sm text-[#2b1b1e] leading-relaxed">
+                <p>{post.text}</p>
+              </div>
+
+              {/* Imagen o Contenedor multimedia si existe */}
+              {post.imageUrl && (
+                <div className="mt-2 bg-[#F3EFE6]/50 overflow-hidden max-h-96 flex items-center justify-center">
+                  <img
+                    src={post.imageUrl}
+                    alt="Publicación"
+                    className="w-full h-auto object-cover max-h-96"
+                  />
+                </div>
+              )}
+
+              {/* Conteo de reacciones */}
+              <div className="px-4 py-2 border-b border-[#C9B8A6]/20 flex items-center justify-between text-[11px] text-[#2b1b1e]/60">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-[#8C2C45] text-white flex items-center justify-center text-[9px]">
+                    👍
+                  </span>
+                  <span className="font-semibold text-[#5A0F24]">{post.likes}</span>
+                </div>
+                <span>{post.commentsCount} comentarios</span>
+              </div>
+
+              {/* Barra de Interacciones (Recomendar, Comentar, Compartir, Enviar) */}
+              <div className="px-2 py-1 flex items-center justify-around text-xs font-bold text-[#5A0F24]/80">
+                <button
+                  type="button"
+                  onClick={() => handleLike(post.id)}
+                  className={`flex-1 py-2 flex items-center justify-center gap-1.5 rounded-xl hover:bg-[#F3EFE6] transition cursor-pointer ${
+                    post.liked ? 'text-[#8C2C45]' : ''
+                  }`}
+                >
+                  <ThumbsUp className={`w-4 h-4 ${post.liked ? 'fill-[#8C2C45]' : ''}`} />
+                  <span>Recomendar</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="flex-1 py-2 flex items-center justify-center gap-1.5 rounded-xl hover:bg-[#F3EFE6] transition cursor-pointer"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Comentar</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="flex-1 py-2 flex items-center justify-center gap-1.5 rounded-xl hover:bg-[#F3EFE6] transition cursor-pointer"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span>Compartir</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="flex-1 py-2 flex items-center justify-center gap-1.5 rounded-xl hover:bg-[#F3EFE6] transition cursor-pointer"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Enviar</span>
+                </button>
+              </div>
+            </article>
+          ))}
+        </section>
+
+        {/* ========================================================= */}
+        {/* COLUMNA DERECHA: NOTICIAS & FOOTER LINKEDIN (3 COLS) */}
+        {/* ========================================================= */}
+        <aside className="md:col-span-3 space-y-3">
+          {/* TARJETA 1: NOTICIAS (IDENTICA A LA CAPTURA) */}
+          <div className="bg-white rounded-2xl border border-[#C9B8A6]/40 p-4 shadow-xs">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-extrabold text-[#5A0F24]">FreelancerHub Noticias</h3>
+              <Info className="w-3.5 h-3.5 text-[#C9B8A6]" />
+            </div>
+            <p className="text-[11px] font-semibold text-[#2b1b1e]/60 mb-3">Historias destacadas</p>
+
+            <ul className="space-y-3 text-xs">
+              <li>
+                <a href="#noticias" className="group block">
+                  <p className="font-bold text-[#5A0F24] group-hover:text-[#8C2C45] line-clamp-1 leading-snug">
+                    Chile supera el millón de personas sin ...
+                  </p>
+                  <span className="text-[10px] text-[#C9B8A6]">Hace 1 día • 298 lectores</span>
+                </a>
+              </li>
+              <li>
+                <a href="#noticias" className="group block">
+                  <p className="font-bold text-[#5A0F24] group-hover:text-[#8C2C45] line-clamp-1 leading-snug">
+                    Las marcas más valiosas del mundo en ...
+                  </p>
+                  <span className="text-[10px] text-[#C9B8A6]">Hace 1 día • 267 lectores</span>
+                </a>
+              </li>
+              <li>
+                <a href="#noticias" className="group block">
+                  <p className="font-bold text-[#5A0F24] group-hover:text-[#8C2C45] line-clamp-1 leading-snug">
+                    Anthropic se alista para salir a bolsa en ...
+                  </p>
+                  <span className="text-[10px] text-[#C9B8A6]">Hace 3 días • 548 lectores</span>
+                </a>
+              </li>
+              <li>
+                <a href="#noticias" className="group block">
+                  <p className="font-bold text-[#5A0F24] group-hover:text-[#8C2C45] line-clamp-1 leading-snug">
+                    Los superricos agravan la crisis climática: ...
+                  </p>
+                  <span className="text-[10px] text-[#C9B8A6]">Hace 3 días • 519 lectores</span>
+                </a>
+              </li>
+              <li>
+                <a href="#noticias" className="group block">
+                  <p className="font-bold text-[#5A0F24] group-hover:text-[#8C2C45] line-clamp-1 leading-snug">
+                    La IA está desgastando las habilidades de...
+                  </p>
+                  <span className="text-[10px] text-[#C9B8A6]">Hace 4 días • 451 lectores</span>
+                </a>
+              </li>
+            </ul>
+
+            <button
+              onClick={() => alert('Cargando más noticias')}
+              className="mt-3 text-xs font-bold text-[#8C2C45] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <span>Mostrar más noticias</span>
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* FOOTER DISCRETO Y ELEGANTE */}
+          <footer className="text-[11px] text-[#C9B8A6] text-center space-y-2 px-2">
+            <div className="flex flex-wrap justify-center gap-x-3 gap-y-1">
+              <a href="#acerca" className="hover:text-[#8C2C45]">Acerca de</a>
+              <a href="#accesibilidad" className="hover:text-[#8C2C45]">Accesibilidad</a>
+              <a href="#ayuda" className="hover:text-[#8C2C45]">Centro de ayuda</a>
+              <a href="#privacidad" className="hover:text-[#8C2C45]">Privacidad y condiciones</a>
+              <a href="#publicidad" className="hover:text-[#8C2C45]">Publicidad</a>
+            </div>
+            <div className="flex items-center justify-center gap-1 text-[#5A0F24] font-bold text-xs pt-1">
+              <div className="w-4 h-4 rounded-xs bg-[#8C2C45] text-white flex items-center justify-center text-[9px] font-black">
+                FH
+              </div>
+              <span>FreelancerHub Corporation © 2026</span>
+            </div>
+          </footer>
+        </aside>
+      </main>
+
+      {/* MODAL LIMPIO PARA CREAR PUBLICACIÓN */}
+      {isCreatePostModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-[#C9B8A6]/50 overflow-hidden animate-in fade-in duration-150">
+            <div className="px-5 py-3.5 border-b border-[#C9B8A6]/30 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <img
+                  src={profileData.avatarUrl}
+                  alt={currentUser.fullName}
+                  className="w-10 h-10 rounded-full object-cover ring-1 ring-[#C9B8A6]"
+                />
+                <div>
+                  <h4 className="text-sm font-bold text-[#5A0F24]">{currentUser.fullName}</h4>
+                  <span className="text-[11px] text-[#C9B8A6]">Publicar para cualquiera</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsCreatePostModalOpen(false)}
+                className="p-1 rounded-full text-[#C9B8A6] hover:text-[#5A0F24] hover:bg-[#F3EFE6] transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreatePost} className="p-5 space-y-4">
+              <textarea
+                rows={5}
+                required
+                autoFocus
+                value={newPostContent}
+                onChange={(e) => setNewPostContent(e.target.value)}
+                placeholder="¿De qué quieres hablar?"
+                className="w-full resize-none border-none text-sm text-[#2b1b1e] placeholder-[#C9B8A6] focus:outline-none"
+              />
+
+              <div className="pt-3 border-t border-[#C9B8A6]/20 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[#8C2C45]">
+                  <button
+                    type="button"
+                    className="p-2 rounded-full hover:bg-[#F3EFE6] transition cursor-pointer"
+                    title="Añadir foto"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
-                        {proj.budget}
-                      </span>
-                      <span className="text-[10px] text-[#9a868a]">
-                        {proj.proposals}
-                      </span>
-                    </div>
+                    <ImageIcon className="w-5 h-5" />
+                  </button>
+                  <button
+                    type="button"
+                    className="p-2 rounded-full hover:bg-[#F3EFE6] transition cursor-pointer"
+                    title="Añadir vídeo"
+                  >
+                    <Video className="w-5 h-5 text-emerald-600" />
+                  </button>
+                  <button
+                    type="button"
+                    className="p-2 rounded-full hover:bg-[#F3EFE6] transition cursor-pointer"
+                    title="Escribir artículo"
+                  >
+                    <FileText className="w-5 h-5 text-amber-700" />
+                  </button>
+                </div>
 
-                    <h4 className="text-xs font-bold text-[#5A0F24] leading-snug hover:underline cursor-pointer">
-                      {proj.title}
-                    </h4>
-
-                    <p className="text-[10px] text-[#5A0F24]/70">
-                      {proj.company}
-                    </p>
-
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      {proj.tags.map((t) => (
-                        <span
-                          key={t}
-                          className="px-1.5 py-0.5 rounded text-[9px] bg-white border border-[#C9B8A6]/40 text-[#5A0F24]"
-                        >
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        alert(`Postulación enviada para "${proj.title}"`)
-                      }
-                      className="w-full mt-2 py-1 rounded-lg bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-[10px] font-bold transition-colors cursor-pointer"
-                    >
-                      Postularme
-                    </button>
-                  </div>
-                ))}
+                <button
+                  type="submit"
+                  disabled={!newPostContent.trim()}
+                  className="px-5 py-2 bg-[#8C2C45] hover:bg-[#5A0F24] disabled:bg-[#C9B8A6]/50 text-white rounded-full text-xs font-bold transition shadow-xs cursor-pointer"
+                >
+                  Publicar
+                </button>
               </div>
-            </div>
-
-            {/* Tendencias del Hub */}
-            <div className="bg-white rounded-2xl border border-[#C9B8A6]/50 p-4 shadow-xs space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[#5A0F24] flex items-center gap-1.5">
-                <TrendingUp className="w-3.5 h-3.5 text-[#8C2C45]" />
-                Tendencias en el Hub
-              </h3>
-
-              <ul className="space-y-2 text-xs">
-                <li className="cursor-pointer hover:underline">
-                  <div className="font-bold text-[#5A0F24]">#FullstackReact</div>
-                  <div className="text-[10px] text-[#9a868a]">1,420 proyectos publicados esta semana</div>
-                </li>
-                <li className="cursor-pointer hover:underline">
-                  <div className="font-bold text-[#5A0F24]">#FigmaDesignSystems</div>
-                  <div className="text-[10px] text-[#9a868a]">890 clientes buscando talento</div>
-                </li>
-                <li className="cursor-pointer hover:underline">
-                  <div className="font-bold text-[#5A0F24]">#GarantiaEscrow</div>
-                  <div className="text-[10px] text-[#9a868a]">100% de liquidaciones aseguradas</div>
-                </li>
-              </ul>
-            </div>
-
-            {/* Mini Footer */}
-            <div className="px-2 text-center text-[10px] text-[#5A0F24]/60 space-y-1">
-              <div className="flex flex-wrap justify-center gap-2">
-                <a href="#acerca" className="hover:underline">Acerca de</a>
-                <a href="#ayuda" className="hover:underline">Centro de Ayuda</a>
-                <a href="#privacidad" className="hover:underline">Privacidad & Términos</a>
-              </div>
-              <p>© 2026 FreelanceHub Corporation</p>
-            </div>
-          </aside>
+            </form>
+          </div>
         </div>
-      </div>
-
-      {/* Modal para Editar Perfil / Completar Info */}
-      <ProfileCompletionModal
-        isOpen={isProfileModalOpen}
-        onClose={() => {
-          setIsProfileModalOpen(false);
-          loadProfileProgress();
-        }}
-        initialStep={1}
-        onProgressUpdated={(newProgress) => {
-          setProfileProgress((prev) => ({ ...prev, ...newProgress }));
-        }}
-      />
+      )}
     </div>
   );
 }

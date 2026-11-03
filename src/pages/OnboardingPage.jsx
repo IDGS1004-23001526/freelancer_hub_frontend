@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import {
   Sparkles,
   CheckCircle2,
@@ -19,7 +19,6 @@ import ProfileCompletionModal from '../features/profile/components/ProfileComple
 
 export default function OnboardingPage() {
   const location = useLocation();
-  const navigate = useNavigate();
   const { user } = useAuthStore();
 
   const currentUser = location.state?.newUser || user || {

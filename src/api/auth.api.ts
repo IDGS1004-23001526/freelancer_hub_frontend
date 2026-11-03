@@ -32,4 +32,9 @@ export const authApi = {
     const response = await apiClient.get<ApiResponse<UserProfile>>('/v1/auth/me');
     return response.data;
   },
+
+  googleAuth: async (idToken: string, role?: string): Promise<ApiResponse<AuthResponse>> => {
+    const response = await apiClient.post<ApiResponse<AuthResponse>>('/v1/auth/google', { idToken, role });
+    return response.data;
+  },
 };

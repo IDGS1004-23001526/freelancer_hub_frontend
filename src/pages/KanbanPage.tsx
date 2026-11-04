@@ -433,6 +433,36 @@ export default function KanbanPage() {
         )}
       </div>
 
+      {/* Leyenda de Capas Arquitectónicas */}
+      <div className="max-w-7xl mx-auto mt-4 px-4 py-2.5 bg-white border border-[#E8DEDA] rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs shadow-2xs">
+        <div className="flex items-center gap-2">
+          <span className="font-extrabold text-[#5A0F24] text-[11px] uppercase tracking-wider">
+            Capas del Sistema:
+          </span>
+          <span className="text-[#7A6167] text-[11px] hidden sm:inline">
+            Cada tarea indica su alcance técnico:
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10px] font-extrabold bg-indigo-100 text-indigo-800 border-indigo-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+            BACKEND (Node/Prisma/DB)
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10px] font-extrabold bg-cyan-100 text-cyan-800 border-cyan-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-600"></span>
+            MÓVIL (Flutter/Dart)
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border-emerald-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+            FRONTEND WEB (React/PWA)
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10px] font-extrabold bg-amber-100 text-amber-800 border-amber-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+            QA / TESTING (Playwright/E2E)
+          </span>
+        </div>
+      </div>
+
       {/* Columnas Kanban */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
         {COLUMNS.map((col) => {

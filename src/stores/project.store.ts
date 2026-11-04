@@ -154,14 +154,14 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       const newProject: ProjectConvocatoria = {
         id: `proj_${Date.now()}`,
         title: payload.title.trim(),
-        category: payload.category,
+        category: payload.category || 'Desarrollo Web',
         budget: Number(payload.budget),
-        currency: payload.currency || 'USD',
+        currency: payload.currency || 'MXN',
         skills: payload.skills,
         estimatedDate: payload.estimatedDate,
         description:
           payload.description?.trim() ||
-          `Convocatoria abierta para ${payload.title.trim()} en la categoría de ${payload.category}. Se requieren especialistas con dominio en ${payload.skills.join(', ')}.`,
+          `Convocatoria abierta para ${payload.title.trim()} en la categoría de ${payload.category || 'Desarrollo Web'}. Se requieren especialistas con dominio en ${payload.skills.join(', ')}.`,
         status: 'ABIERTO',
         clientName: clientName || 'Sofía Ramírez • Cliente Verificado',
         proposalsCount: 0,

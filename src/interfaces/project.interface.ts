@@ -27,10 +27,11 @@ export const PROJECT_CATEGORIES: ProjectCategory[] = [
 
 export const SUGGESTED_SKILLS: string[] = [
   'React',
+  'Node',
+  'PostgreSQL',
   'TypeScript',
   'Tailwind CSS',
   'Node.js',
-  'PostgreSQL',
   'Next.js',
   'Figma',
   'UI/UX Design',

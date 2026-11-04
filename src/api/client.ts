@@ -12,7 +12,10 @@ export const apiClient = axios.create({
 // Interceptor para inyectar Access Token JWT en peticiones protegidas
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('fh_access_token');
+    const token =
+      localStorage.getItem('fh_access_token') ||
+      localStorage.getItem('token') ||
+      localStorage.getItem('accessToken');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }

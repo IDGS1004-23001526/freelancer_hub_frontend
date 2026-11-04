@@ -7,11 +7,11 @@ import Button from '../../ui/Button.jsx';
 import { useAuthStore } from '../../../stores/auth.store.js';
 
 export default function LoginForm() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [feedback, setFeedback] = useState(null);
-  const navigate = useNavigate();
 
   const { login, googleLogin, loading } = useAuthStore();
 
@@ -21,10 +21,10 @@ export default function LoginForm() {
 
     const result = await login({ email, password });
     if (result.success) {
-      setFeedback({ type: 'success', text: `¡Bienvenido de vuelta, ${result.user.fullName}!` });
+      setFeedback({ type: 'success', text: `¡Bienvenido de vuelta, ${result.user?.fullName || ''}!` });
       setTimeout(() => {
-        navigate('/onboarding');
-      }, 800);
+        navigate('/dashboard');
+      }, 600);
     } else {
       setFeedback({ type: 'error', text: result.error });
     }
@@ -39,7 +39,7 @@ export default function LoginForm() {
     if (result.success) {
       setFeedback({ type: 'success', text: `¡Bienvenido de vuelta, ${result.user.fullName}!` });
       setTimeout(() => {
-        navigate('/onboarding');
+        navigate('/dashboard');
       }, 800);
     } else {
       setFeedback({ type: 'error', text: result.error });

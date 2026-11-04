@@ -4,21 +4,28 @@ import LoginPage from '../pages/LoginPage.jsx';
 import RegisterPage from '../pages/RegisterPage.jsx';
 import OnboardingPage from '../pages/OnboardingPage.jsx';
 import KanbanPage from '../pages/KanbanPage.tsx';
+import DashboardPage from '../pages/DashboardPage.jsx';
+import ProfilePage from '../pages/ProfilePage.jsx';
+import { useAuthStore } from '../stores/auth.store.js';
 
 export default function AppRoutes() {
+  const { isAuthenticated } = useAuthStore();
+
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/onboarding" element={<OnboardingPage />} />
+      <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/profile" element={<ProfilePage />} />
       
       {/* Ruta interna / privada de gestión de tareas de equipo (Mini-Jira) */}
       <Route path="/ops/board" element={<KanbanPage />} />
       <Route path="/internal/kanban" element={<Navigate to="/ops/board" replace />} />
 
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      {/* Rutas futuras: /dashboard, /projects, /escrow */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
+      {/* Rutas futuras: /projects, /escrow */}
+      <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
     </Routes>
   );
 }

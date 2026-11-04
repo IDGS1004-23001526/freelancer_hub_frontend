@@ -55,6 +55,7 @@ export default function KanbanPage() {
 
   // Panel de Claves de Paulo
   const [showPasswordsModal, setShowPasswordsModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<InternalTask | null>(null);
   const [teamPasswords, setTeamPasswords] = useState<{ name: string; role: string; password?: string }[]>([]);
 
   // Formulario nueva tarea (Solo Paulo)
@@ -493,7 +494,7 @@ export default function KanbanPage() {
                               <>
                                 {col.id !== 'TODO' && (
                                   <button
-                                    onClick={() => handleMove(task.id, task.status, 'prev')}
+                                    onClick={(e) => { e.stopPropagation(); handleMove(task.id, task.status, 'prev'); }}
                                     title="Mover a etapa anterior"
                                     className="p-1 rounded-md hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
                                   >
@@ -503,7 +504,7 @@ export default function KanbanPage() {
 
                                 {col.id !== 'DONE' && (
                                   <button
-                                    onClick={() => handleMove(task.id, task.status, 'next')}
+                                    onClick={(e) => { e.stopPropagation(); handleMove(task.id, task.status, 'next'); }}
                                     title="Avanzar etapa"
                                     className="p-1 rounded-md hover:bg-[#8C2C45]/10 text-[#8C2C45] hover:text-[#5A0F24] font-bold transition-colors cursor-pointer"
                                   >
@@ -513,7 +514,7 @@ export default function KanbanPage() {
 
                                 {isAdmin && (
                                   <button
-                                    onClick={() => handleDelete(task.id)}
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(task.id); }}
                                     title="Eliminar tarea (Solo Admin)"
                                     className="p-1 rounded-md hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors ml-1 cursor-pointer"
                                   >
@@ -537,6 +538,80 @@ export default function KanbanPage() {
           );
         })}
       </div>
+
+      
+      {/* Modal Detalle Completo de Tarea */}
+      {selectedTask && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+          onClick={() => setSelectedTask(null)}
+        >
+          <div 
+            className="w-full max-w-lg bg-white rounded-2xl border border-[#E8DEDA] shadow-2xl p-6 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 mb-4 pb-3 border-b border-[#E8DEDA]">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md ${PRIORITIES[selectedTask.priority]?.badge}`}>
+                  {PRIORITIES[selectedTask.priority]?.label || selectedTask.priority}
+                </span>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-[#F3EFE6] text-[#5A0F24]">
+                  Estado: {COLUMNS.find(c => c.id === selectedTask.status)?.title}
+                </span>
+              </div>
+              <button 
+                onClick={() => setSelectedTask(null)} 
+                className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <h3 className="text-base font-black text-[#5A0F24] leading-snug mb-3">
+              {selectedTask.title}
+            </h3>
+
+            <div className="bg-[#FAF7F2] rounded-xl p-4 border border-[#E8DEDA] mb-4">
+              <h4 className="text-[11px] font-bold text-[#8C2C45] uppercase tracking-wider mb-2">
+                Descripción & Criterios de Aceptación
+              </h4>
+              <p className="text-xs text-[#3A1420] whitespace-pre-wrap leading-relaxed">
+                {selectedTask.description || 'Sin descripción detallada.'}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs text-[#7A6167] bg-white rounded-xl p-3 border border-[#F3EFE6] mb-5">
+              <div>
+                <span className="block text-[10px] font-bold uppercase text-slate-400">Responsable Asignado</span>
+                <span className="font-bold text-[#5A0F24] flex items-center gap-1 mt-0.5">
+                  <User className="w-3.5 h-3.5" /> {selectedTask.assignee}
+                </span>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold uppercase text-slate-400">Asignado por</span>
+                <span className="font-medium text-slate-700 mt-0.5 block">{selectedTask.createdBy}</span>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold uppercase text-slate-400">Fecha de Registro</span>
+                <span className="mt-0.5 block">{new Date(selectedTask.createdAt).toLocaleString('es-MX')}</span>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold uppercase text-slate-400">Última Actualización</span>
+                <span className="mt-0.5 block">{new Date(selectedTask.updatedAt).toLocaleString('es-MX')}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => setSelectedTask(null)}
+                className="px-4 py-2 bg-[#5A0F24] hover:bg-[#8C2C45] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-sm"
+              >
+                Cerrar Detalle
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Credenciales de Equipo (Exclusivo Paulo Admin) */}
       {showPasswordsModal && isAdmin && (

@@ -1,226 +1,327 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Briefcase,
-  Tag,
-  DollarSign,
-  Calendar,
-  Code2,
-  Plus,
-  X,
-  AlertTriangle,
-  CheckCircle2,
-  Sparkles,
+  AlertCircle,
   ArrowRight,
+  Briefcase,
+  Calendar,
+  DollarSign,
   FileText,
   ShieldCheck,
-  AlertCircle,
+  Sparkles,
+  Tag,
 } from 'lucide-react';
-import Button from '../../ui/Button.jsx';
 import Toast from '../../ui/Toast.jsx';
+import SkillTagsSelector from './SkillTagsSelector.jsx';
+import { apiClient } from '../../../api/client.js';
 import { useProjectStore } from '../../../stores/project.store.js';
 import { useAuthStore } from '../../../stores/auth.store.js';
-import {
-  PROJECT_CATEGORIES,
-  SUGGESTED_SKILLS,
-} from '../../../interfaces/project.interface.js';
+import { PROJECT_CATEGORIES } from '../../../interfaces/project.interface.js';
 
-export default function ProjectForm({ onSuccess }) {
+/**
+ * Obtiene la fecha local en formato YYYY-MM-DD
+ */
+function getLocalDateString(offsetDays = 0) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export default function ProjectForm({ onValidationChange }) {
   const navigate = useNavigate();
-  const { createProject, loading } = useProjectStore();
-  const { user } = useAuthStore();
+  const { createProject } = useProjectStore();
+  const { user, accessToken } = useAuthStore();
 
-  // Estados reactivos del formulario
+  // Estado de los campos del formulario (HU-01 / FREEL-37)
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('');
-  const [budget, setBudget] = useState('');
-  const [currency, setCurrency] = useState('USD');
-  const [skills, setSkills] = useState([]);
-  const [customSkill, setCustomSkill] = useState('');
-  const [estimatedDate, setEstimatedDate] = useState('');
   const [description, setDescription] = useState('');
+  const [budget, setBudget] = useState('');
+  const [estimatedDate, setEstimatedDate] = useState('');
+  const [skills, setSkills] = useState([]);
+  const [category, setCategory] = useState('Desarrollo Web');
 
-  // Control de interacción para feedback visual de errores (Escenario 2 de la HU)
+  // Control de campos tocados para mostrar feedback en vivo
   const [touched, setTouched] = useState({
     title: false,
-    category: false,
+    description: false,
     budget: false,
-    skills: false,
     estimatedDate: false,
+    skills: false,
   });
-  const [submitAttempted, setSubmitAttempted] = useState(false);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
 
+  const todayStr = useMemo(() => getLocalDateString(0), []);
+  const tomorrowStr = useMemo(() => getLocalDateString(1), []);
+
   const markTouched = (field) => {
-    setTouched((prev) => ({ ...prev, [field]: true }));
+    setTouched((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
   };
 
-  // Fecha mínima sugerida (hoy)
-  const todayStr = new Date().toISOString().split('T')[0];
+  // Validaciones en vivo (FREEL-37)
+  const validation = useMemo(() => {
+    const trimmedTitle = title.trim();
+    const trimmedDesc = description.trim();
+    const numericBudget = budget === '' ? NaN : Number(budget);
 
-  // Validaciones reactivas en tiempo real
-  const validateTitle = () => {
-    if (!title.trim()) return 'El título de la convocatoria es obligatorio.';
-    if (title.trim().length < 5)
-      return 'El título debe contener al menos 5 caracteres descriptivos.';
-    return null;
-  };
+    // 1. Título (mínimo 10 caracteres)
+    let titleError = null;
+    if (!trimmedTitle) {
+      titleError =
+        'El título de la convocatoria es obligatorio (mínimo 10 caracteres).';
+    } else if (trimmedTitle.length < 10) {
+      titleError = `El título debe tener al menos 10 caracteres (actual: ${trimmedTitle.length}/10).`;
+    }
 
-  const validateCategory = () => {
-    if (!category.trim()) return 'Debes seleccionar una categoría para el proyecto.';
-    return null;
-  };
+    // 2. Descripción detallada (mínimo 30 caracteres)
+    let descriptionError = null;
+    if (!trimmedDesc) {
+      descriptionError =
+        'La descripción detallada es obligatoria (mínimo 30 caracteres).';
+    } else if (trimmedDesc.length < 30) {
+      descriptionError = `La descripción detallada debe tener al menos 30 caracteres (actual: ${trimmedDesc.length}/30).`;
+    }
 
-  const validateBudget = () => {
-    if (budget === '' || budget === null)
-      return 'El presupuesto estimado es obligatorio.';
-    const num = Number(budget);
-    if (isNaN(num) || num <= 0)
-      return 'Ingresa un presupuesto válido mayor a $0.';
-    return null;
-  };
+    // 3. Presupuesto estimado en MXN (> 0)
+    let budgetError = null;
+    if (budget === '' || budget === null) {
+      budgetError = 'El presupuesto estimado en MXN es obligatorio.';
+    } else if (Number.isNaN(numericBudget) || numericBudget <= 0) {
+      budgetError = 'El presupuesto estimado debe ser mayor a $0 MXN.';
+    }
 
-  const validateSkills = () => {
+    // 4. Fecha estimada de entrega (posterior a hoy)
+    let estimatedDateError = null;
+    if (!estimatedDate) {
+      estimatedDateError = 'Selecciona una fecha estimada de entrega.';
+    } else if (estimatedDate <= todayStr) {
+      estimatedDateError =
+        'La fecha estimada de entrega debe ser posterior a hoy.';
+    }
+
+    // 5. Selector interactivo de tags de habilidades (mínimo 3 requeridos)
+    let skillsError = null;
     if (skills.length < 3) {
       const remaining = 3 - skills.length;
-      return `Se requieren mínimo 3 habilidades técnicas (seleccionadas: ${skills.length}/3, faltan ${remaining}).`;
+      skillsError = `Selecciona al menos 3 habilidades requeridas (seleccionadas: ${skills.length}/3, ${
+        remaining === 1 ? 'falta 1' : `faltan ${remaining}`
+      }).`;
     }
-    return null;
-  };
 
-  const validateEstimatedDate = () => {
-    if (!estimatedDate) return 'La fecha estimada de entrega es obligatoria.';
-    return null;
-  };
+    const hasErrors = Boolean(
+      titleError ||
+        descriptionError ||
+        budgetError ||
+        estimatedDateError ||
+        skillsError
+    );
 
-  const titleError =
-    touched.title || submitAttempted ? validateTitle() : null;
-  const categoryError =
-    touched.category || submitAttempted ? validateCategory() : null;
-  const budgetError =
-    touched.budget || submitAttempted ? validateBudget() : null;
-  const skillsError =
-    touched.skills || submitAttempted ? validateSkills() : null;
-  const estimatedDateError =
-    touched.estimatedDate || submitAttempted ? validateEstimatedDate() : null;
+    return {
+      titleError,
+      descriptionError,
+      budgetError,
+      estimatedDateError,
+      skillsError,
+      isTitleValid: !titleError,
+      isDescriptionValid: !descriptionError,
+      isBudgetValid: !budgetError,
+      isDateValid: !estimatedDateError,
+      isSkillsValid: !skillsError,
+      isValid: !hasErrors,
+    };
+  }, [title, description, budget, estimatedDate, skills, todayStr]);
 
-  const hasLessThan3Skills = skills.length < 3;
-  const invalidFieldsCount = [
-    titleError,
-    categoryError,
-    budgetError,
-    skillsError,
-    estimatedDateError,
-  ].filter(Boolean).length;
+  const formattedPreviewBudget =
+    budget && !Number.isNaN(Number(budget)) && Number(budget) > 0
+      ? new Intl.NumberFormat('es-MX', {
+          style: 'currency',
+          currency: 'MXN',
+          maximumFractionDigits: 2,
+        }).format(Number(budget))
+      : null;
 
-  // Toggle chip de habilidad sugerida
+  // Notificar al componente padre los estados de validación para el checklist lateral
+  useEffect(() => {
+    if (!onValidationChange) return;
+    onValidationChange([
+      {
+        id: 'req-title',
+        label: 'Título del proyecto (mín. 10 caracteres)',
+        met: validation.isTitleValid,
+        detail: `${title.trim().length}/10 caracteres`,
+      },
+      {
+        id: 'req-description',
+        label: 'Descripción detallada (mín. 30 caracteres)',
+        met: validation.isDescriptionValid,
+        detail: `${description.trim().length}/30 caracteres`,
+      },
+      {
+        id: 'req-budget',
+        label: 'Presupuesto estimado en MXN (> $0)',
+        met: validation.isBudgetValid,
+        detail: formattedPreviewBudget
+          ? `${formattedPreviewBudget} MXN`
+          : 'Pendiente',
+      },
+      {
+        id: 'req-date',
+        label: 'Fecha estimada de entrega (posterior a hoy)',
+        met: validation.isDateValid,
+        detail: estimatedDate || 'Sin seleccionar',
+      },
+      {
+        id: 'req-skills',
+        label: 'Tags de habilidades (mín. 3 requeridos)',
+        met: validation.isSkillsValid,
+        detail: `${skills.length}/3 seleccionados`,
+      },
+    ]);
+  }, [
+    onValidationChange,
+    validation,
+    title,
+    description,
+    formattedPreviewBudget,
+    estimatedDate,
+    skills,
+  ]);
+
+  const showTitleError =
+    (touched.title || title.length > 0) && validation.titleError;
+  const showDescriptionError =
+    (touched.description || description.length > 0) &&
+    validation.descriptionError;
+  const showBudgetError =
+    (touched.budget || budget !== '') && validation.budgetError;
+  const showDateError =
+    (touched.estimatedDate || estimatedDate !== '') &&
+    validation.estimatedDateError;
+  const showSkillsError =
+    (touched.skills || skills.length > 0) && validation.skillsError;
+
   const handleToggleSkill = (skillName) => {
     markTouched('skills');
-    if (skills.includes(skillName)) {
-      setSkills((prev) => prev.filter((s) => s !== skillName));
-    } else {
-      if (skills.length >= 15) return;
-      setSkills((prev) => [...prev, skillName]);
-    }
+    setSkills((prev) => {
+      if (prev.includes(skillName)) {
+        return prev.filter((item) => item !== skillName);
+      }
+      if (prev.length >= 15) return prev;
+      return [...prev, skillName];
+    });
   };
 
-  // Agregar chip personalizado
-  const handleAddCustomSkill = (e) => {
-    if (e) e.preventDefault();
+  const handleAddCustomSkill = (cleanSkill) => {
     markTouched('skills');
-    const clean = customSkill.trim();
-    if (!clean) return;
-    if (!skills.some((s) => s.toLowerCase() === clean.toLowerCase())) {
-      setSkills((prev) => [...prev, clean]);
+    if (!skills.some((s) => s.toLowerCase() === cleanSkill.toLowerCase())) {
+      setSkills((prev) => [...prev, cleanSkill]);
     }
-    setCustomSkill('');
   };
 
   const handleRemoveSkill = (skillToRemove) => {
     markTouched('skills');
-    setSkills((prev) => prev.filter((s) => s !== skillToRemove));
+    setSkills((prev) => prev.filter((item) => item !== skillToRemove));
   };
 
-  // Atajos de fecha estimada
   const applyDateOffsetDays = (days) => {
-    const target = new Date();
-    target.setDate(target.getDate() + days);
-    const formatted = target.toISOString().split('T')[0];
-    setEstimatedDate(formatted);
+    const targetDate = getLocalDateString(days);
+    setEstimatedDate(targetDate);
     markTouched('estimatedDate');
   };
 
-  // Envío del formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitAttempted(true);
     setTouched({
       title: true,
-      category: true,
+      description: true,
       budget: true,
-      skills: true,
       estimatedDate: true,
+      skills: true,
     });
 
-    const tErr = validateTitle();
-    const cErr = validateCategory();
-    const bErr = validateBudget();
-    const sErr = validateSkills();
-    const dErr = validateEstimatedDate();
-
-    if (tErr || cErr || bErr || sErr || dErr) {
-      setToast({
-        type: 'error',
-        title: 'Campos inválidos detectados',
-        message:
-          'Por favor revisa los campos resaltados en rojo y asegúrate de elegir al menos 3 habilidades.',
-      });
+    if (!validation.isValid || isSubmitting) {
       return;
     }
+
+    setIsSubmitting(true);
+
+    const payload = {
+      title: title.trim(),
+      description: description.trim(),
+      budget: Number(budget),
+      currency: 'MXN',
+      estimatedDate,
+      skills,
+      category: category || 'Desarrollo Web',
+    };
+
+    const jwtToken =
+      accessToken ||
+      localStorage.getItem('fh_access_token') ||
+      localStorage.getItem('token') ||
+      '';
 
     const clientDisplayName = user?.fullName
       ? `${user.fullName} • Cliente Verificado`
       : 'Sofía Ramírez • Estudio Nexus';
 
-    const result = await createProject(
-      {
-        title: title.trim(),
-        category,
-        budget: Number(budget),
-        currency,
-        skills,
-        estimatedDate,
-        description: description.trim(),
-      },
-      clientDisplayName
-    );
+    try {
+      const response = await apiClient.post('/v1/projects', payload, {
+        headers: jwtToken
+          ? { Authorization: `Bearer ${jwtToken}` }
+          : undefined,
+      });
 
-    if (result.success && result.project) {
+      const createdFromApi = response?.data?.data || response?.data;
+
+      await createProject(payload, clientDisplayName);
+
       setToast({
         type: 'success',
-        title: '¡Convocatoria publicada con estado ABIERTO!',
-        message: `El proyecto "${result.project.title}" ha sido registrado exitosamente. Redirigiendo...`,
+        title: '¡Convocatoria publicada exitosamente!',
+        message: 'Redirigiendo al feed de convocatorias...',
       });
-
-      if (onSuccess) {
-        onSuccess(result.project);
-      }
 
       setTimeout(() => {
-        navigate(`/projects/${result.project.id}`, {
+        navigate('/projects', {
           state: {
             justCreated: true,
-            project: result.project,
+            newProjectId: createdFromApi?.id,
           },
         });
-      }, 900);
-    } else {
-      setToast({
-        type: 'error',
-        title: 'Error al publicar',
-        message:
-          result.error || 'No se pudo registrar la convocatoria. Inténtalo de nuevo.',
-      });
+      }, 500);
+    } catch {
+      const result = await createProject(payload, clientDisplayName);
+
+      if (result.success && result.project) {
+        setToast({
+          type: 'success',
+          title: '¡Convocatoria publicada con estado ABIERTO!',
+          message: 'Redirigiendo al feed de proyectos...',
+        });
+
+        setTimeout(() => {
+          navigate('/projects', {
+            state: {
+              justCreated: true,
+              newProjectId: result.project.id,
+            },
+          });
+        }, 500);
+      } else {
+        setToast({
+          type: 'error',
+          title: 'Error al publicar la convocatoria',
+          message:
+            result.error ||
+            'No fue posible registrar el proyecto. Verifica tu conexión e inténtalo de nuevo.',
+        });
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -238,220 +339,186 @@ export default function ProjectForm({ onSuccess }) {
       <form
         onSubmit={handleSubmit}
         noValidate
-        data-testid="convocatoria-form"
-        className="bg-white rounded-3xl p-6 md:p-10 shadow-[0_15px_40px_-15px_rgba(90,15,36,0.1)] border border-[#C9B8A6]/50 relative overflow-hidden space-y-6"
+        data-testid="create-project-form"
+        className="bg-white rounded-3xl p-6 sm:p-8 md:p-10 shadow-[0_15px_40px_-15px_rgba(90,15,36,0.12)] border border-[#C9B8A6]/60 relative overflow-hidden space-y-6"
       >
-        {/* Glow decorativo superior */}
-        <div className="absolute -top-12 -right-12 w-56 h-56 bg-[#C68A8F]/20 rounded-full blur-3xl pointer-events-none" />
+        {/* Decoración con paleta Rosa Polvo y Arena */}
+        <div className="absolute -top-14 -right-14 w-60 h-60 bg-[#C68A8F]/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-16 -left-16 w-52 h-52 bg-[#C9B8A6]/25 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Cabecera del Formulario */}
-        <div className="relative z-10 border-b border-[#C9B8A6]/40 pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Encabezado del Formulario */}
+        <div className="relative z-10 border-b border-[#C9B8A6]/50 pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F3EFE6] border border-[#C68A8F]/40 mb-2.5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F3EFE6] border border-[#C68A8F]/50 mb-2.5">
               <Sparkles className="w-3.5 h-3.5 text-[#8C2C45]" />
               <span className="text-[11px] font-bold text-[#5A0F24] uppercase tracking-wider">
-                Publicación Reactiva
+                Nueva Convocatoria de Proyecto
               </span>
             </div>
-            <h2 className="text-xl md:text-2xl font-extrabold text-[#5A0F24] tracking-tight">
-              Publicar Nueva Convocatoria
-            </h2>
-            <p className="text-xs md:text-sm text-[#5A0F24]/75 mt-1">
-              Completa los requerimientos técnicos para recibir propuestas de talento verificado. Al publicarse se activará con el badge{' '}
-              <span className="font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full text-[11px]">
-                ABIERTO
-              </span>
-              .
+            <h1 className="text-xl sm:text-2xl font-extrabold text-[#5A0F24] tracking-tight">
+              Publicar Requerimientos del Proyecto
+            </h1>
+            <p className="text-xs sm:text-sm text-[#5A0F24]/75 mt-1">
+              Define el alcance, presupuesto en MXN y habilidades clave para conectar con freelancers verificados.
             </p>
           </div>
 
-          {/* Resumen de estado en tiempo real */}
-          <div className="px-4 py-3 rounded-2xl bg-[#F3EFE6]/70 border border-[#C9B8A6]/50 shrink-0 text-right">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#5A0F24]/60 block">
-              Estado inicial
+          <div className="px-4 py-3 rounded-2xl bg-[#F3EFE6] border border-[#C9B8A6]/60 shrink-0 self-start sm:self-auto">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#5A0F24]/70 block">
+              Moneda Oficial
             </span>
-            <span className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-              ABIERTO
+            <span className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-[#5A0F24] text-[#F3EFE6]">
+              MXN • Peso Mexicano
             </span>
           </div>
         </div>
 
-        {/* Banner de Alerta Global ante Errores (Escenario 2 de la HU) */}
-        {submitAttempted && invalidFieldsCount > 0 && (
-          <div
-            role="alert"
-            data-testid="form-error-banner"
-            className="p-4 rounded-2xl bg-[#fff5f5] border-2 border-[#8C2C45] text-[#5A0F24] flex items-start gap-3 animate-fade-in"
-          >
-            <AlertCircle className="w-5 h-5 text-[#8C2C45] shrink-0 mt-0.5" />
-            <div className="text-xs space-y-1">
-              <p className="font-extrabold text-[#8C2C45]">
-                No se pudo publicar la convocatoria ({invalidFieldsCount}{' '}
-                {invalidFieldsCount === 1 ? 'campo inválido' : 'campos inválidos'})
-              </p>
-              <p className="text-[#5A0F24]/85">
-                Revisa los campos resaltados en rojo para continuar con el registro.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* 1. Título de la Convocatoria */}
-        <div>
-          <div className="flex justify-between items-center mb-1.5 px-1">
+        {/* 1. TÍTULO DE LA CONVOCATORIA (mínimo 10 caracteres) */}
+        <div className="relative z-10">
+          <div className="flex flex-wrap justify-between items-center gap-1 mb-1.5 px-1">
             <label
-              htmlFor="title"
-              className="text-xs font-bold text-[#5A0F24] flex items-center gap-1"
+              htmlFor="project-title"
+              className="text-xs font-extrabold text-[#5A0F24] flex items-center gap-1.5"
             >
+              <Briefcase className="w-3.5 h-3.5 text-[#8C2C45]" />
               <span>Título de la Convocatoria</span>
               <span className="text-[#8C2C45]">*</span>
             </label>
-            <span className="text-[11px] font-medium text-[#9a868a]">
-              {title.length}/120 caracteres
+            <span
+              data-testid="title-counter"
+              className={`text-[11px] font-bold ${
+                validation.isTitleValid ? 'text-emerald-700' : 'text-[#8C2C45]'
+              }`}
+            >
+              {title.trim().length} / mín. 10 caracteres
             </span>
           </div>
-          <div className="relative">
-            <div
-              className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${
-                titleError ? 'text-[#8C2C45]' : 'text-[#9a868a]'
-              }`}
-            >
-              <Briefcase className="w-4 h-4" />
-            </div>
-            <input
-              id="title"
-              name="title"
-              type="text"
-              maxLength={120}
-              value={title}
-              onChange={(e) => {
-                setTitle(e.target.value);
-                markTouched('title');
-              }}
-              onBlur={() => markTouched('title')}
-              placeholder="ej. Desarrollo de Plataforma Fintech con Custodia Escrow"
-              aria-invalid={titleError ? 'true' : 'false'}
-              data-testid="input-title"
-              className={`w-full pl-10 pr-4 py-3 rounded-xl text-xs md:text-sm text-[#2b1b1e] placeholder-[#b0a0a4] focus:outline-none transition-all shadow-xs border ${
-                titleError
-                  ? 'border-[#8C2C45] bg-[#fff5f5]/60 ring-2 ring-[#8C2C45]/20 focus:border-[#8C2C45]'
-                  : 'border-[#e8deda] bg-white focus:ring-2 focus:ring-[#72293e]/20 focus:border-[#72293e]'
-              }`}
-            />
-          </div>
-          {titleError ? (
+
+          <input
+            id="project-title"
+            name="title"
+            type="text"
+            maxLength={120}
+            value={title}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              markTouched('title');
+            }}
+            onBlur={() => markTouched('title')}
+            placeholder="Ej. Desarrollo de Plataforma Web E-Commerce con Pasarela Escrow"
+            aria-invalid={showTitleError ? 'true' : 'false'}
+            data-testid="input-title"
+            className={`w-full px-4 py-3 rounded-xl text-xs sm:text-sm text-[#2b1b1e] placeholder-[#9a868a] focus:outline-none transition-all border ${
+              showTitleError
+                ? 'border-[#8C2C45] bg-[#fff5f5]/70 ring-2 ring-[#8C2C45]/20 focus:border-[#8C2C45]'
+                : validation.isTitleValid
+                ? 'border-emerald-500/70 bg-white focus:ring-2 focus:ring-emerald-500/20'
+                : 'border-[#C9B8A6] bg-[#F3EFE6]/30 focus:bg-white focus:ring-2 focus:ring-[#8C2C45]/20 focus:border-[#8C2C45]'
+            }`}
+          />
+
+          {showTitleError ? (
             <p
+              role="alert"
               data-testid="error-title"
-              className="mt-1.5 text-[11px] font-bold text-[#8C2C45] flex items-center gap-1"
+              className="mt-1.5 text-[11px] font-bold text-[#8C2C45] flex items-center gap-1.5"
             >
-              <span>•</span> {titleError}
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>{validation.titleError}</span>
             </p>
           ) : (
-            <p className="mt-1 text-[11px] text-[#7d686d]">
-              Usa un título claro y específico (mínimo 5 caracteres).
+            <p className="mt-1 text-[11px] text-[#5A0F24]/65">
+              Escribe un título claro y descriptivo de al menos 10 caracteres.
             </p>
           )}
         </div>
 
-        {/* 2. Grid: Categoría y Presupuesto */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* Categoría */}
-          <div>
-            <div className="flex justify-between items-center mb-1.5 px-1">
-              <label
-                htmlFor="category"
-                className="text-xs font-bold text-[#5A0F24] flex items-center gap-1"
-              >
-                <span>Categoría del Proyecto</span>
-                <span className="text-[#8C2C45]">*</span>
-              </label>
-              <span className="text-[11px] font-medium text-[#9a868a]">Requerido</span>
-            </div>
-            <div className="relative">
-              <div
-                className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${
-                  categoryError ? 'text-[#8C2C45]' : 'text-[#9a868a]'
-                }`}
-              >
-                <Tag className="w-4 h-4" />
-              </div>
-              <select
-                id="category"
-                name="category"
-                value={category}
-                onChange={(e) => {
-                  setCategory(e.target.value);
-                  markTouched('category');
-                }}
-                onBlur={() => markTouched('category')}
-                aria-invalid={categoryError ? 'true' : 'false'}
-                data-testid="select-category"
-                className={`w-full pl-10 pr-4 py-3 rounded-xl text-xs md:text-sm text-[#2b1b1e] focus:outline-none transition-all shadow-xs border cursor-pointer ${
-                  categoryError
-                    ? 'border-[#8C2C45] bg-[#fff5f5]/60 ring-2 ring-[#8C2C45]/20 focus:border-[#8C2C45]'
-                    : 'border-[#e8deda] bg-white focus:ring-2 focus:ring-[#72293e]/20 focus:border-[#72293e]'
-                }`}
-              >
-                <option value="">Selecciona una categoría...</option>
-                {PROJECT_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {categoryError ? (
-              <p
-                data-testid="error-category"
-                className="mt-1.5 text-[11px] font-bold text-[#8C2C45] flex items-center gap-1"
-              >
-                <span>•</span> {categoryError}
-              </p>
-            ) : (
-              <p className="mt-1 text-[11px] text-[#7d686d]">
-                Clasifica tu proyecto para conectarlo con especialistas del área.
-              </p>
-            )}
+        {/* 2. DESCRIPCIÓN DETALLADA (mínimo 30 caracteres) */}
+        <div className="relative z-10">
+          <div className="flex flex-wrap justify-between items-center gap-1 mb-1.5 px-1">
+            <label
+              htmlFor="project-description"
+              className="text-xs font-extrabold text-[#5A0F24] flex items-center gap-1.5"
+            >
+              <FileText className="w-3.5 h-3.5 text-[#8C2C45]" />
+              <span>Descripción Detallada del Proyecto</span>
+              <span className="text-[#8C2C45]">*</span>
+            </label>
+            <span
+              data-testid="description-counter"
+              className={`text-[11px] font-bold ${
+                validation.isDescriptionValid
+                  ? 'text-emerald-700'
+                  : 'text-[#8C2C45]'
+              }`}
+            >
+              {description.trim().length} / mín. 30 caracteres
+            </span>
           </div>
 
-          {/* Presupuesto */}
+          <textarea
+            id="project-description"
+            name="description"
+            rows={4}
+            maxLength={1500}
+            value={description}
+            onChange={(e) => {
+              setDescription(e.target.value);
+              markTouched('description');
+            }}
+            onBlur={() => markTouched('description')}
+            placeholder="Describe detalladamente los requerimientos técnicos, entregables esperados, arquitectura y criterios de aceptación (mínimo 30 caracteres)..."
+            aria-invalid={showDescriptionError ? 'true' : 'false'}
+            data-testid="input-description"
+            className={`w-full p-4 rounded-xl text-xs sm:text-sm text-[#2b1b1e] placeholder-[#9a868a] focus:outline-none transition-all border resize-y ${
+              showDescriptionError
+                ? 'border-[#8C2C45] bg-[#fff5f5]/70 ring-2 ring-[#8C2C45]/20 focus:border-[#8C2C45]'
+                : validation.isDescriptionValid
+                ? 'border-emerald-500/70 bg-white focus:ring-2 focus:ring-emerald-500/20'
+                : 'border-[#C9B8A6] bg-[#F3EFE6]/30 focus:bg-white focus:ring-2 focus:ring-[#8C2C45]/20 focus:border-[#8C2C45]'
+            }`}
+          />
+
+          {showDescriptionError ? (
+            <p
+              role="alert"
+              data-testid="error-description"
+              className="mt-1.5 text-[11px] font-bold text-[#8C2C45] flex items-center gap-1.5"
+            >
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>{validation.descriptionError}</span>
+            </p>
+          ) : (
+            <p className="mt-1 text-[11px] text-[#5A0F24]/65">
+              Incluye el contexto del proyecto, módulos principales y entregables (mínimo 30 caracteres).
+            </p>
+          )}
+        </div>
+
+        {/* 3. GRID: PRESUPUESTO ESTIMADO EN MXN (> 0) + FECHA ESTIMADA DE ENTREGA (posterior a hoy) */}
+        <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Presupuesto Estimado en MXN */}
           <div>
             <div className="flex justify-between items-center mb-1.5 px-1">
               <label
-                htmlFor="budget"
-                className="text-xs font-bold text-[#5A0F24] flex items-center gap-1"
+                htmlFor="project-budget"
+                className="text-xs font-extrabold text-[#5A0F24] flex items-center gap-1.5"
               >
-                <span>Presupuesto Estimado</span>
+                <DollarSign className="w-3.5 h-3.5 text-[#8C2C45]" />
+                <span>Presupuesto Estimado (MXN)</span>
                 <span className="text-[#8C2C45]">*</span>
               </label>
-              <div className="flex items-center gap-1">
-                {['USD', 'MXN'].map((curr) => (
-                  <button
-                    key={curr}
-                    type="button"
-                    onClick={() => setCurrency(curr)}
-                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-colors cursor-pointer ${
-                      currency === curr
-                        ? 'bg-[#8C2C45] text-white'
-                        : 'bg-[#F3EFE6] text-[#5A0F24]/70 hover:text-[#5A0F24]'
-                    }`}
-                  >
-                    {curr}
-                  </button>
-                ))}
-              </div>
+              <span className="text-[11px] font-extrabold text-[#5A0F24] bg-[#F3EFE6] px-2 py-0.5 rounded-md border border-[#C9B8A6]/60">
+                MXN
+              </span>
             </div>
+
             <div className="relative">
-              <div
-                className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${
-                  budgetError ? 'text-[#8C2C45]' : 'text-[#9a868a]'
-                }`}
-              >
-                <DollarSign className="w-4 h-4" />
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#8C2C45] font-bold text-sm">
+                $
               </div>
               <input
-                id="budget"
+                id="project-budget"
                 name="budget"
                 type="number"
                 min="1"
@@ -462,262 +529,87 @@ export default function ProjectForm({ onSuccess }) {
                   markTouched('budget');
                 }}
                 onBlur={() => markTouched('budget')}
-                placeholder="ej. 2500"
-                aria-invalid={budgetError ? 'true' : 'false'}
+                placeholder="Ej. 25000"
+                aria-invalid={showBudgetError ? 'true' : 'false'}
                 data-testid="input-budget"
-                className={`w-full pl-10 pr-16 py-3 rounded-xl text-xs md:text-sm text-[#2b1b1e] placeholder-[#b0a0a4] focus:outline-none transition-all shadow-xs border ${
-                  budgetError
-                    ? 'border-[#8C2C45] bg-[#fff5f5]/60 ring-2 ring-[#8C2C45]/20 focus:border-[#8C2C45]'
-                    : 'border-[#e8deda] bg-white focus:ring-2 focus:ring-[#72293e]/20 focus:border-[#72293e]'
+                className={`w-full pl-8 pr-16 py-3 rounded-xl text-xs sm:text-sm text-[#2b1b1e] placeholder-[#9a868a] focus:outline-none transition-all border ${
+                  showBudgetError
+                    ? 'border-[#8C2C45] bg-[#fff5f5]/70 ring-2 ring-[#8C2C45]/20 focus:border-[#8C2C45]'
+                    : validation.isBudgetValid
+                    ? 'border-emerald-500/70 bg-white focus:ring-2 focus:ring-emerald-500/20'
+                    : 'border-[#C9B8A6] bg-[#F3EFE6]/30 focus:bg-white focus:ring-2 focus:ring-[#8C2C45]/20 focus:border-[#8C2C45]'
                 }`}
               />
               <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none">
-                <span className="text-[11px] font-bold text-[#5A0F24]/60">
-                  {currency}
+                <span className="text-xs font-extrabold text-[#5A0F24]">
+                  MXN
                 </span>
               </div>
             </div>
-            {budgetError ? (
+
+            {showBudgetError ? (
               <p
+                role="alert"
                 data-testid="error-budget"
-                className="mt-1.5 text-[11px] font-bold text-[#8C2C45] flex items-center gap-1"
+                className="mt-1.5 text-[11px] font-bold text-[#8C2C45] flex items-center gap-1.5"
               >
-                <span>•</span> {budgetError}
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{validation.budgetError}</span>
               </p>
             ) : (
-              <p className="mt-1 text-[11px] text-[#7d686d]">
-                Monto protegido bajo custodia Escrow al contratar.
+              <p className="mt-1 text-[11px] text-[#5A0F24]/65">
+                {formattedPreviewBudget
+                  ? `Monto configurado: ${formattedPreviewBudget} MXN`
+                  : 'Ingresa un monto mayor a $0 MXN.'}
               </p>
             )}
           </div>
-        </div>
 
-        {/* 3. Selector de Habilidades con Chips Interactivos y Contador en Tiempo Real */}
-        <div
-          data-testid="skills-section"
-          className={`p-5 rounded-2xl border transition-all ${
-            skillsError
-              ? 'border-[#8C2C45] bg-[#fff5f5]/50 ring-2 ring-[#8C2C45]/15'
-              : hasLessThan3Skills
-              ? 'border-amber-300/90 bg-[#F3EFE6]/50'
-              : 'border-emerald-300/80 bg-emerald-50/20'
-          }`}
-        >
-          {/* Cabecera del Selector + Contador en Tiempo Real */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-            <div>
-              <label className="text-xs font-extrabold text-[#5A0F24] flex items-center gap-1.5">
-                <Code2 className="w-4 h-4 text-[#8C2C45]" />
-                <span>Habilidades Técnicas Requeridas</span>
-                <span className="text-[#8C2C45]">*</span>
-              </label>
-              <p className="text-[11px] text-[#5A0F24]/70 mt-0.5">
-                Selecciona o escribe las tecnologías clave (mínimo 3 requeridas).
-              </p>
-            </div>
-
-            {/* Contador en Tiempo Real */}
-            <div
-              data-testid="skills-counter"
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-extrabold shrink-0 border ${
-                hasLessThan3Skills
-                  ? 'bg-amber-100/90 text-[#8C2C45] border-[#8C2C45]/40'
-                  : 'bg-emerald-100 text-emerald-800 border-emerald-300'
-              }`}
-            >
-              {hasLessThan3Skills ? (
-                <AlertTriangle className="w-3.5 h-3.5 text-[#8C2C45]" />
-              ) : (
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
-              )}
-              <span>
-                {skills.length} / 3 mín. seleccionadas
-              </span>
-            </div>
-          </div>
-
-          {/* Alerta visual en tiempo real si hay menos de 3 habilidades */}
-          {hasLessThan3Skills && (
-            <div
-              role="alert"
-              data-testid="skills-min-alert"
-              className={`mb-4 p-3 rounded-xl border text-xs flex items-center justify-between gap-2 ${
-                skillsError
-                  ? 'bg-[#fdeeee] border-[#8C2C45] text-[#5A0F24] font-semibold'
-                  : 'bg-amber-50 border-amber-300/90 text-amber-950'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-[#8C2C45] shrink-0" />
-                <span>
-                  <strong>Alerta de requisito:</strong> Selecciona al menos{' '}
-                  <strong>3 habilidades</strong> para publicar la convocatoria (te{' '}
-                  {3 - skills.length === 1
-                    ? 'falta 1 habilidad'
-                    : `faltan ${3 - skills.length} habilidades`}
-                  ).
-                </span>
-              </div>
-              <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-white/80 text-[#8C2C45] shrink-0">
-                Faltan {3 - skills.length}
-              </span>
-            </div>
-          )}
-
-          {/* Input para agregar habilidad personalizada */}
-          <div className="flex gap-2 mb-4">
-            <input
-              id="customSkill"
-              type="text"
-              value={customSkill}
-              onChange={(e) => setCustomSkill(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleAddCustomSkill();
-                }
-              }}
-              placeholder="Añadir otra habilidad (ej. NestJS, Go, Redis) y presiona Enter..."
-              data-testid="input-custom-skill"
-              className="flex-1 px-3.5 py-2.5 bg-white border border-[#e8deda] focus:ring-2 focus:ring-[#72293e]/20 focus:border-[#72293e] rounded-xl text-xs text-[#2b1b1e] placeholder-[#b0a0a4] focus:outline-none transition-all shadow-2xs"
-            />
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleAddCustomSkill}
-              data-testid="btn-add-skill"
-              className="px-4 py-2.5 text-xs font-bold border-[#C9B8A6]"
-            >
-              <Plus className="w-3.5 h-3.5 text-[#8C2C45]" />
-              <span>Agregar</span>
-            </Button>
-          </div>
-
-          {/* Chips de Habilidades Seleccionadas */}
-          <div className="mb-4">
-            <span className="block text-[11px] font-bold text-[#5A0F24] uppercase tracking-wider mb-2">
-              Habilidades activas en tu convocatoria ({skills.length}):
-            </span>
-            {skills.length === 0 ? (
-              <div className="p-3 rounded-xl border border-dashed border-[#C9B8A6] bg-white/60 text-center text-xs text-[#5A0F24]/60">
-                Ninguna habilidad seleccionada todavía. Haz clic en los chips de abajo para agregarlas.
-              </div>
-            ) : (
-              <div
-                data-testid="selected-skills-chips"
-                className="flex flex-wrap gap-2"
-              >
-                {skills.map((skill) => (
-                  <span
-                    key={skill}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#5A0F24] text-[#F3EFE6] text-xs font-semibold shadow-2xs"
-                  >
-                    <span>{skill}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveSkill(skill)}
-                      aria-label={`Quitar ${skill}`}
-                      className="text-[#C68A8F] hover:text-white transition-colors cursor-pointer"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Chips Interactivos de Sugerencias Populares */}
-          <div>
-            <span className="block text-[11px] font-semibold text-[#5A0F24]/75 mb-2">
-              Chips rápidos de habilidades (clic para activar/desactivar):
-            </span>
-            <div
-              data-testid="suggested-skills-chips"
-              className="flex flex-wrap gap-1.5"
-            >
-              {SUGGESTED_SKILLS.map((skill) => {
-                const isSelected = skills.includes(skill);
-                return (
-                  <button
-                    key={skill}
-                    type="button"
-                    onClick={() => handleToggleSkill(skill)}
-                    data-testid={`skill-chip-${skill}`}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
-                      isSelected
-                        ? 'bg-[#8C2C45] text-white shadow-xs ring-2 ring-[#8C2C45]/25'
-                        : 'bg-white text-[#5A0F24] border border-[#C9B8A6]/60 hover:bg-[#F3EFE6] hover:border-[#8C2C45]/50'
-                    }`}
-                  >
-                    <span>{isSelected ? '✓' : '+'}</span>
-                    <span>{skill}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {skillsError && (
-            <p
-              data-testid="error-skills"
-              className="mt-2.5 text-[11px] font-bold text-[#8C2C45] flex items-center gap-1"
-            >
-              <span>•</span> {skillsError}
-            </p>
-          )}
-        </div>
-
-        {/* 4. Datepicker para Fecha Estimada + Descripción */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* Datepicker Fecha Estimada */}
+          {/* Selector de Fecha Estimada de Entrega (posterior a hoy) */}
           <div>
             <div className="flex justify-between items-center mb-1.5 px-1">
               <label
-                htmlFor="estimatedDate"
-                className="text-xs font-bold text-[#5A0F24] flex items-center gap-1"
+                htmlFor="project-date"
+                className="text-xs font-extrabold text-[#5A0F24] flex items-center gap-1.5"
               >
+                <Calendar className="w-3.5 h-3.5 text-[#8C2C45]" />
                 <span>Fecha Estimada de Entrega</span>
                 <span className="text-[#8C2C45]">*</span>
               </label>
-              <span className="text-[11px] font-medium text-[#9a868a]">Datepicker</span>
+              <span className="text-[11px] font-medium text-[#8C2C45]">
+                Posterior a hoy
+              </span>
             </div>
 
-            <div className="relative">
-              <div
-                className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${
-                  estimatedDateError ? 'text-[#8C2C45]' : 'text-[#9a868a]'
-                }`}
-              >
-                <Calendar className="w-4 h-4" />
-              </div>
-              <input
-                id="estimatedDate"
-                name="estimatedDate"
-                type="date"
-                min={todayStr}
-                value={estimatedDate}
-                onChange={(e) => {
-                  setEstimatedDate(e.target.value);
-                  markTouched('estimatedDate');
-                }}
-                onBlur={() => markTouched('estimatedDate')}
-                aria-invalid={estimatedDateError ? 'true' : 'false'}
-                data-testid="input-estimated-date"
-                className={`w-full pl-10 pr-4 py-3 rounded-xl text-xs md:text-sm text-[#2b1b1e] focus:outline-none transition-all shadow-xs border cursor-pointer ${
-                  estimatedDateError
-                    ? 'border-[#8C2C45] bg-[#fff5f5]/60 ring-2 ring-[#8C2C45]/20 focus:border-[#8C2C45]'
-                    : 'border-[#e8deda] bg-white focus:ring-2 focus:ring-[#72293e]/20 focus:border-[#72293e]'
-                }`}
-              />
-            </div>
+            <input
+              id="project-date"
+              name="estimatedDate"
+              type="date"
+              min={tomorrowStr}
+              value={estimatedDate}
+              onChange={(e) => {
+                setEstimatedDate(e.target.value);
+                markTouched('estimatedDate');
+              }}
+              onBlur={() => markTouched('estimatedDate')}
+              aria-invalid={showDateError ? 'true' : 'false'}
+              data-testid="input-estimated-date"
+              className={`w-full px-4 py-3 rounded-xl text-xs sm:text-sm text-[#2b1b1e] focus:outline-none transition-all border cursor-pointer ${
+                showDateError
+                  ? 'border-[#8C2C45] bg-[#fff5f5]/70 ring-2 ring-[#8C2C45]/20 focus:border-[#8C2C45]'
+                  : validation.isDateValid
+                  ? 'border-emerald-500/70 bg-white focus:ring-2 focus:ring-emerald-500/20'
+                  : 'border-[#C9B8A6] bg-[#F3EFE6]/30 focus:bg-white focus:ring-2 focus:ring-[#8C2C45]/20 focus:border-[#8C2C45]'
+              }`}
+            />
 
-            {/* Botones rápidos de fecha estimada */}
+            {/* Botones rápidos de plazo */}
             <div className="flex flex-wrap items-center gap-1.5 mt-2">
-              <span className="text-[10px] font-semibold text-[#5A0F24]/65">
-                Plazos sugeridos:
+              <span className="text-[10px] font-bold text-[#5A0F24]/70">
+                Plazos rápidos:
               </span>
               {[
+                { label: '+7 días', days: 7 },
                 { label: '+15 días', days: 15 },
                 { label: '+1 mes', days: 30 },
                 { label: '+2 meses', days: 60 },
@@ -726,86 +618,104 @@ export default function ProjectForm({ onSuccess }) {
                   key={preset.label}
                   type="button"
                   onClick={() => applyDateOffsetDays(preset.days)}
-                  className="px-2 py-0.5 rounded-lg bg-[#F3EFE6] hover:bg-[#C68A8F]/25 text-[#5A0F24] text-[10px] font-bold border border-[#C9B8A6]/50 transition-colors cursor-pointer"
+                  className="px-2 py-0.5 rounded-lg bg-[#F3EFE6] hover:bg-[#C68A8F]/30 text-[#5A0F24] text-[10px] font-bold border border-[#C9B8A6]/60 transition-colors cursor-pointer"
                 >
                   {preset.label}
                 </button>
               ))}
             </div>
 
-            {estimatedDateError ? (
+            {showDateError && (
               <p
+                role="alert"
                 data-testid="error-estimated-date"
-                className="mt-1.5 text-[11px] font-bold text-[#8C2C45] flex items-center gap-1"
+                className="mt-1.5 text-[11px] font-bold text-[#8C2C45] flex items-center gap-1.5"
               >
-                <span>•</span> {estimatedDateError}
-              </p>
-            ) : (
-              <p className="mt-1 text-[11px] text-[#7d686d]">
-                Fecha objetivo para concluir todos los entregables.
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{validation.estimatedDateError}</span>
               </p>
             )}
           </div>
-
-          {/* Descripción / Alcance Adicional */}
-          <div>
-            <div className="flex justify-between items-center mb-1.5 px-1">
-              <label
-                htmlFor="description"
-                className="text-xs font-bold text-[#5A0F24] flex items-center gap-1.5"
-              >
-                <FileText className="w-3.5 h-3.5 text-[#8C2C45]" />
-                <span>Alcance y Entregables (Opcional)</span>
-              </label>
-              <span className="text-[11px] font-medium text-[#9a868a]">
-                {description.length}/1000
-              </span>
-            </div>
-            <textarea
-              id="description"
-              name="description"
-              rows={3}
-              maxLength={1000}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Detalla los objetivos, hitos de entrega y criterios de aceptación para los candidatos..."
-              data-testid="input-description"
-              className="w-full p-3 bg-white border border-[#e8deda] focus:ring-2 focus:ring-[#72293e]/20 focus:border-[#72293e] rounded-xl text-xs md:text-sm text-[#2b1b1e] placeholder-[#b0a0a4] focus:outline-none transition-all shadow-xs resize-y"
-            />
-          </div>
         </div>
 
-        {/* Footer de Envío */}
-        <div className="pt-4 border-t border-[#C9B8A6]/40 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-xs text-[#5A0F24]/75">
+        {/* Categoría del Proyecto */}
+        <div className="relative z-10">
+          <div className="flex justify-between items-center mb-1.5 px-1">
+            <label
+              htmlFor="project-category"
+              className="text-xs font-extrabold text-[#5A0F24] flex items-center gap-1.5"
+            >
+              <Tag className="w-3.5 h-3.5 text-[#8C2C45]" />
+              <span>Categoría de la Convocatoria</span>
+            </label>
+            <span className="text-[11px] font-medium text-[#5A0F24]/60">
+              Clasificación en el feed
+            </span>
+          </div>
+          <select
+            id="project-category"
+            name="category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            data-testid="select-category"
+            className="w-full px-4 py-3 rounded-xl text-xs sm:text-sm text-[#2b1b1e] bg-[#F3EFE6]/40 border border-[#C9B8A6] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#8C2C45]/20 focus:border-[#8C2C45] transition-all cursor-pointer"
+          >
+            {PROJECT_CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* 5. COMPONENTE SEPARADO: SELECTOR INTERACTIVO DE TAGS DE HABILIDADES */}
+        <SkillTagsSelector
+          skills={skills}
+          onToggleSkill={handleToggleSkill}
+          onAddCustomSkill={handleAddCustomSkill}
+          onRemoveSkill={handleRemoveSkill}
+          isSkillsValid={validation.isSkillsValid}
+          showSkillsError={showSkillsError}
+          skillsError={validation.skillsError}
+        />
+
+        {/* Footer con Botón de Envío Deshabilitado mientras existan errores */}
+        <div className="relative z-10 pt-5 border-t border-[#C9B8A6]/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-xs text-[#5A0F24]/80 flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-[#8C2C45] shrink-0" />
             <span>
-              Al registrar, tu convocatoria será visible inmediatamente con el badge{' '}
-              <strong className="text-emerald-800">ABIERTO</strong>.
+              {validation.isValid
+                ? 'Todos los campos son válidos. Listo para publicar en el feed.'
+                : 'Completa todos los campos requeridos sin errores para habilitar el envío.'}
             </span>
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
-            <Button
+            <button
               type="button"
-              variant="secondary"
-              onClick={() => navigate('/dashboard')}
-              className="flex-1 sm:flex-initial px-5 py-3"
+              onClick={() => navigate('/projects')}
+              className="flex-1 sm:flex-initial px-5 py-3 rounded-xl bg-[#F3EFE6] hover:bg-[#C9B8A6]/40 text-[#5A0F24] border border-[#C9B8A6] text-xs sm:text-sm font-bold transition-colors cursor-pointer"
             >
               Cancelar
-            </Button>
+            </button>
 
-            <Button
+            <button
               type="submit"
-              disabled={loading}
+              disabled={!validation.isValid || isSubmitting}
               data-testid="btn-submit-convocatoria"
-              className="flex-1 sm:flex-initial px-7 py-3 bg-[#8C2C45] hover:bg-[#5A0F24] text-white shadow-[0_8px_20px_-4px_rgba(140,44,69,0.4)]"
+              className={`flex-1 sm:flex-initial px-7 py-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 ${
+                !validation.isValid || isSubmitting
+                  ? 'bg-[#C9B8A6]/60 text-[#5A0F24]/50 border border-[#C9B8A6] cursor-not-allowed opacity-70'
+                  : 'bg-[#8C2C45] hover:bg-[#5A0F24] text-white shadow-[0_8px_22px_-4px_rgba(90,15,36,0.4)] cursor-pointer'
+              }`}
             >
               <span>
-                {loading ? 'Publicando Convocatoria...' : 'Publicar Convocatoria'}
+                {isSubmitting
+                  ? 'Publicando Convocatoria...'
+                  : 'Publicar Convocatoria'}
               </span>
               <ArrowRight className="w-4 h-4" />
-            </Button>
+            </button>
           </div>
         </div>
       </form>

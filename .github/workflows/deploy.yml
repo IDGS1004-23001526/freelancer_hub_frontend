@@ -21,7 +21,7 @@ jobs:
           USER: ${{ secrets.SERVER_USERNAME }}
         run: |
           mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/github_key
+          printf "%s\n" "$SSH_KEY" > ~/.ssh/github_key
           chmod 600 ~/.ssh/github_key
           
           cat << SSH_EOF > ~/.ssh/config

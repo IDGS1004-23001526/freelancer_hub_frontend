@@ -1,78 +1,110 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('FLH-FE-01: Dashboard de Clientes y Publicación Reactiva de Convocatoria', () => {
-  test('1. Muestra el Navbar con avatar, nombre, saldo/tarjeta y botón + Nueva Convocatoria', async ({
-    page,
-  }) => {
-    await page.goto('/dashboard');
-
-    await expect(page.getByTestId('navbar-user-avatar')).toBeVisible();
-    await expect(page.getByTestId('navbar-wallet-card')).toBeVisible();
-    const newBtn = page.getByTestId('btn-nueva-convocatoria');
-    await expect(newBtn).toBeVisible();
-    await expect(newBtn).toContainText('+ Nueva Convocatoria');
-  });
-
-  test('2. Escenario 2: Resalta campos inválidos y alerta si hay menos de 3 habilidades', async ({
+test.describe('FREEL-37 (HU-01): Formulario de Creación de Convocatorias - CreateProjectPage', () => {
+  test('1. Deshabilita el botón de enviar mientras haya errores de validación en vivo', async ({
     page,
   }) => {
     await page.goto('/projects/new');
 
-    // Alerta inicial de menos de 3 habilidades activa en tiempo real
-    const skillsAlert = page.getByTestId('skills-min-alert');
-    await expect(skillsAlert).toBeVisible();
-    await expect(page.getByTestId('skills-counter')).toContainText('0 / 3');
+    const submitBtn = page.getByTestId('btn-submit-convocatoria');
+    await expect(submitBtn).toBeDisabled();
 
-    //Seleccionar solo 2 habilidades -> sigue mostrando alerta
-    await page.getByTestId('skill-chip-React').click();
-    await page.getByTestId('skill-chip-TypeScript').click();
-    await expect(page.getByTestId('skills-counter')).toContainText('2 / 3');
-    await expect(skillsAlert).toBeVisible();
-
-    // Intentar enviar con campos vacíos y < 3 habilidades
-    await page.getByTestId('btn-submit-convocatoria').click();
-
-    await expect(page.getByTestId('form-error-banner')).toBeVisible();
+    // Título menor a 10 caracteres muestra error en vivo
+    await page.getByTestId('input-title').fill('Corto');
     await expect(page.getByTestId('error-title')).toBeVisible();
-    await expect(page.getByTestId('error-category')).toBeVisible();
+    await expect(submitBtn).toBeDisabled();
+
+    // Descripción menor a 30 caracteres muestra error en vivo
+    await page.getByTestId('input-description').fill('Descripción muy breve');
+    await expect(page.getByTestId('error-description')).toBeVisible();
+    await expect(submitBtn).toBeDisabled();
+
+    // Presupuesto <= 0 muestra error en vivo
+    await page.getByTestId('input-budget').fill('0');
     await expect(page.getByTestId('error-budget')).toBeVisible();
-    await expect(page.getByTestId('error-skills')).toBeVisible();
-    await expect(page.getByTestId('error-estimated-date')).toBeVisible();
+    await expect(submitBtn).toBeDisabled();
+
+    // Seleccionar solo 2 habilidades mantiene la alerta y botón deshabilitado
+    await page.getByTestId('skill-chip-React').click();
+    await page.getByTestId('skill-chip-Node').click();
+    await expect(page.getByTestId('skills-counter')).toContainText('2 / 3');
+    await expect(page.getByTestId('skills-min-alert')).toBeVisible();
+    await expect(submitBtn).toBeDisabled();
   });
 
-  test('3. Registra exitosamente una convocatoria y redirige al detalle con badge ABIERTO', async ({
+  test('2. Habilita el envío al cumplir las 5 validaciones, envía POST /api/v1/projects con JWT y redirige al feed', async ({
     page,
   }) => {
+    // Simular token JWT en localStorage
+    await page.addInitScript(() => {
+      localStorage.setItem('fh_access_token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test_jwt_token');
+    });
+
+    let capturedAuthHeader: string | undefined;
+    await page.route('**/api/v1/projects', async (route) => {
+      if (route.request().method() === 'POST') {
+        capturedAuthHeader = route.request().headers()['authorization'];
+        const body = route.request().postDataJSON();
+        await route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            success: true,
+            data: {
+              id: 'proj_freel37',
+              ...body,
+              status: 'ABIERTO',
+              clientName: 'Sofía Ramírez • Estudio Nexus',
+              proposalsCount: 0,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
     await page.goto('/projects/new');
 
+    const submitBtn = page.getByTestId('btn-submit-convocatoria');
+    await expect(submitBtn).toBeDisabled();
+
+    // 1. Título (>= 10 caracteres)
     await page
       .getByTestId('input-title')
-      .fill('Sistema Web Reactivo con Pagos Escrow');
-    await page.getByTestId('select-category').selectOption('Desarrollo Web');
-    await page.getByTestId('input-budget').fill('3200');
+      .fill('Desarrollo de Plataforma Fintech con Pagos Escrow');
 
-    // Seleccionar 3 habilidades interactivas
+    // 2. Descripción detallada (>= 30 caracteres)
+    await page
+      .getByTestId('input-description')
+      .fill(
+        'Requerimos construir el frontend en React y backend en Node con PostgreSQL e integración de pagos protegidos.'
+      );
+
+    // 3. Presupuesto estimado en MXN (> 0)
+    await page.getByTestId('input-budget').fill('45000');
+
+    // 4. Fecha estimada posterior a hoy
+    await page.getByTestId('input-estimated-date').fill('2027-12-31');
+
+    // 5. Mínimo 3 tags de habilidades (React, Node, PostgreSQL)
     await page.getByTestId('skill-chip-React').click();
-    await page.getByTestId('skill-chip-TypeScript').click();
-    await page.getByTestId('skill-chip-Tailwind CSS').click();
+    await page.getByTestId('skill-chip-Node').click();
+    await page.getByTestId('skill-chip-PostgreSQL').click();
 
     await expect(page.getByTestId('skills-counter')).toContainText('3 / 3');
-    await expect(page.getByTestId('skills-min-alert')).toHaveCount(0);
+    await expect(submitBtn).toBeEnabled();
 
-    // Seleccionar fecha estimada en el datepicker
-    await page.getByTestId('input-estimated-date').fill('2026-12-31');
+    await submitBtn.click();
 
-    // Publicar convocatoria
-    await page.getByTestId('btn-submit-convocatoria').click();
-
-    // Verificar redirección al detalle del proyecto con badge ABIERTO
-    await page.waitForURL((url) => /\/projects\/proj_/.test(url.pathname), {
+    // Redirección al feed (/projects) y verificación de JWT enviado
+    await page.waitForURL((url) => url.pathname === '/projects', {
       timeout: 10000,
     });
 
-    await expect(page.getByTestId('detail-status-badge')).toContainText('ABIERTO');
-    await expect(page.getByTestId('detail-title')).toContainText(
-      'Sistema Web Reactivo con Pagos Escrow'
-    );
+    expect(capturedAuthHeader).toContain('Bearer ');
+    await expect(page.getByTestId('convocatoria-created-banner')).toBeVisible();
   });
 });

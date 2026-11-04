@@ -28,6 +28,7 @@ export default function ClientDashboardPage() {
 
   const displayName = user?.fullName || 'Sofía Ramírez';
   const highlightedId = location.state?.newProjectId || null;
+  const justCreated = Boolean(location.state?.justCreated);
 
   const openProjectsCount = projects.filter((p) => p.status === 'ABIERTO').length;
   const totalProposals = projects.reduce(
@@ -63,6 +64,31 @@ export default function ClientDashboardPage() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
+        {justCreated && (
+          <div
+            role="status"
+            data-testid="convocatoria-created-banner"
+            className="p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-300 text-emerald-950 flex items-center justify-between gap-3 shadow-xs"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-extrabold text-emerald-950">
+                  ¡Convocatoria publicada exitosamente en el feed!
+                </p>
+                <p className="text-[11px] text-emerald-900/80">
+                  Tu proyecto ya se encuentra activo con estado ABIERTO para recibir propuestas.
+                </p>
+              </div>
+            </div>
+            <span className="px-3 py-1 rounded-full text-[11px] font-extrabold bg-emerald-600 text-white uppercase tracking-wider shrink-0">
+              ABIERTO
+            </span>
+          </div>
+        )}
+
         {/* Hero Banner del Dashboard de Clientes */}
         <section className="bg-white rounded-3xl p-6 md:p-8 shadow-[0_15px_40px_-15px_rgba(90,15,36,0.1)] border border-[#C9B8A6]/50 relative overflow-hidden">
           <div className="absolute -top-12 -right-12 w-56 h-56 bg-[#C68A8F]/20 rounded-full blur-3xl pointer-events-none" />

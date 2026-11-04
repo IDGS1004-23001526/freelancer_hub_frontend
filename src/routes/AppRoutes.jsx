@@ -4,7 +4,7 @@ import LoginPage from '../pages/LoginPage.jsx';
 import RegisterPage from '../pages/RegisterPage.jsx';
 import OnboardingPage from '../pages/OnboardingPage.jsx';
 import ClientDashboardPage from '../pages/ClientDashboardPage.jsx';
-import NewProjectPage from '../pages/NewProjectPage.jsx';
+import CreateProjectPage from '../pages/CreateProjectPage.jsx';
 import ProjectDetailPage from '../pages/ProjectDetailPage.jsx';
 
 export default function AppRoutes() {
@@ -15,7 +15,10 @@ export default function AppRoutes() {
       <Route path="/onboarding" element={<OnboardingPage />} />
       <Route path="/dashboard" element={<ClientDashboardPage />} />
       <Route path="/projects" element={<ClientDashboardPage />} />
-      <Route path="/projects/new" element={<NewProjectPage />} />
+      <Route path="/feed" element={<ClientDashboardPage />} />
+      <Route path="/projects/new" element={<CreateProjectPage />} />
+      <Route path="/projects/create" element={<CreateProjectPage />} />
+      <Route path="/create-project" element={<CreateProjectPage />} />
       <Route path="/projects/:id" element={<ProjectDetailPage />} />
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="*" element={<Navigate to="/login" replace />} />

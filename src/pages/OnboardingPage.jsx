@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import {
   Sparkles,
   CheckCircle2,
   UserCheck,
   Briefcase,
   ArrowRight,
-  ShieldCheck,
   ChevronRight,
-  Award,
+  LayoutDashboard,
+  Plus,
 } from 'lucide-react';
 import AuthLayout from '../layouts/AuthLayout.jsx';
 import Button from '../features/ui/Button.jsx';
@@ -16,9 +16,9 @@ import { useAuthStore } from '../stores/auth.store.js';
 import { profileApi } from '../api/profile.api.js';
 import ProfileCompletionModal from '../features/profile/components/ProfileCompletionModal.jsx';
 
-
 export default function OnboardingPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuthStore();
 
   const currentUser = location.state?.newUser || user || {
@@ -88,7 +88,11 @@ export default function OnboardingPage() {
 
   const handleOpenStep = (stepNumber) => {
     if (isClient) {
-      alert('El asistente de configuración para clientes estará disponible en el próximo release.');
+      if (stepNumber === 3) {
+        navigate('/projects/new');
+      } else {
+        navigate('/dashboard');
+      }
       return;
     }
     setModalInitialStep(stepNumber);
@@ -97,7 +101,7 @@ export default function OnboardingPage() {
 
   const handleOpenFirstPending = () => {
     if (isClient) {
-      alert('El asistente de configuración para clientes estará disponible en el próximo release.');
+      navigate('/projects/new');
       return;
     }
 
@@ -264,14 +268,31 @@ export default function OnboardingPage() {
           </div>
 
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3 pt-2">
             <Button
               className="w-full sm:w-auto px-6 py-3 bg-[#8C2C45] hover:bg-[#5A0F24] text-white cursor-pointer"
               onClick={handleOpenFirstPending}
             >
-              <span>{allCompleted ? 'Editar Mi Perfil' : 'Completar Perfil Ahora'}</span>
-              <ArrowRight className="w-4 h-4" />
+              {isClient ? (
+                <>
+                  <Plus className="w-4 h-4" />
+                  <span>+ Nueva Convocatoria</span>
+                </>
+              ) : (
+                <>
+                  <span>{allCompleted ? 'Editar Mi Perfil' : 'Completar Perfil Ahora'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </Button>
+
+            <Link
+              to="/dashboard"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-xs font-bold text-[#5A0F24] bg-[#F3EFE6] hover:bg-[#e8dfd1] border border-[#C9B8A6]/60 py-3 px-5 rounded-xl transition-colors"
+            >
+              <LayoutDashboard className="w-4 h-4 text-[#8C2C45]" />
+              <span>Ir al Dashboard de Clientes</span>
+            </Link>
 
             <Link
               to="/login"
@@ -298,4 +319,3 @@ export default function OnboardingPage() {
     </AuthLayout>
   );
 }
-

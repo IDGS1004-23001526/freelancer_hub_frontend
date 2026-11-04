@@ -35,6 +35,22 @@ const PRIORITIES: Record<InternalTask['priority'], { label: string; badge: strin
   URGENT: { label: 'Urgente', badge: 'bg-rose-100 text-rose-700 font-bold' },
 };
 
+const getLayerBadge = (title: string) => {
+  if (title.includes('[BACKEND') || title.includes('Backend') || title.includes('Prisma') || title.includes('API')) {
+    return { label: 'BACKEND', bg: 'bg-indigo-100 text-indigo-800 border-indigo-200' };
+  }
+  if (title.includes('[FRONTEND MÓVIL') || title.includes('Móvil') || title.includes('Flutter')) {
+    return { label: 'MÓVIL (FLUTTER)', bg: 'bg-cyan-100 text-cyan-800 border-cyan-200' };
+  }
+  if (title.includes('[FRONTEND WEB') || title.includes('Web') || title.includes('React') || title.includes('PWA')) {
+    return { label: 'FRONTEND WEB', bg: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+  }
+  if (title.includes('[QA') || title.includes('Test') || title.includes('Playwright')) {
+    return { label: 'QA / TESTING', bg: 'bg-amber-100 text-amber-800 border-amber-200' };
+  }
+  return { label: 'FULLSTACK', bg: 'bg-slate-100 text-slate-700 border-slate-200' };
+};
+
 export default function KanbanPage() {
   const [tasks, setTasks] = useState<InternalTask[]>([]);
   const [filterMember, setFilterMember] = useState<string>('MY_TASKS');
@@ -461,13 +477,18 @@ export default function KanbanPage() {
                               <User className="w-3 h-3" />
                               {task.assignee} {isMyTask && !isAdmin && '(Tú)'}
                             </span>
-                            <span
-                              className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-md ${
-                                PRIORITIES[task.priority]?.badge || 'bg-slate-100'
-                              }`}
-                            >
-                              {PRIORITIES[task.priority]?.label || task.priority}
-                            </span>
+                            <div className="flex items-center gap-1">
+                              <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md border ${getLayerBadge(task.title).bg}`}>
+                                {getLayerBadge(task.title).label}
+                              </span>
+                              <span
+                                className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-md ${
+                                  PRIORITIES[task.priority]?.badge || 'bg-slate-100'
+                                }`}
+                              >
+                                {PRIORITIES[task.priority]?.label || task.priority}
+                              </span>
+                            </div>
                           </div>
 
                           <h4 className="text-xs font-bold text-[#3A1420] leading-snug mb-1">
@@ -553,6 +574,9 @@ export default function KanbanPage() {
           >
             <div className="flex items-start justify-between gap-3 mb-4 pb-3 border-b border-[#E8DEDA]">
               <div className="flex flex-wrap items-center gap-2">
+                <span className={`text-[10px] uppercase font-black px-2 py-0.5 rounded-md border ${getLayerBadge(selectedTask.title).bg}`}>
+                  {getLayerBadge(selectedTask.title).label}
+                </span>
                 <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md ${PRIORITIES[selectedTask.priority]?.badge}`}>
                   {PRIORITIES[selectedTask.priority]?.label || selectedTask.priority}
                 </span>

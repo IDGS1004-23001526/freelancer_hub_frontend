@@ -446,7 +446,8 @@ export default function KanbanPage() {
                     return (
                       <div
                         key={task.id}
-                        className={`bg-white rounded-xl p-3.5 border shadow-sm hover:shadow-md transition-all flex flex-col justify-between ${
+                        onClick={() => setSelectedTask(task)}
+                        className={`bg-white rounded-xl p-3.5 border shadow-sm hover:shadow-md transition-all flex flex-col justify-between cursor-pointer hover:border-[#8C2C45] ${
                           isMyTask ? 'border-[#8C2C45]/40 ring-1 ring-[#8C2C45]/20' : 'border-[#E8DEDA]'
                         }`}
                       >

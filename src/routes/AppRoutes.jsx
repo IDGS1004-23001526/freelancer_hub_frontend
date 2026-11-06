@@ -6,25 +6,36 @@ import OnboardingPage from '../pages/OnboardingPage.jsx';
 import KanbanPage from '../pages/KanbanPage.tsx';
 import DashboardPage from '../pages/DashboardPage.jsx';
 import ProfilePage from '../pages/ProfilePage.jsx';
+import ClientDashboardPage from '../pages/ClientDashboardPage.jsx';
+import CreateProjectPage from '../pages/CreateProjectPage.jsx';
+import ProjectDetailPage from '../pages/ProjectDetailPage.jsx';
 import { useAuthStore } from '../stores/auth.store.js';
 
 export default function AppRoutes() {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
+  const isClient = user?.role === 'CLIENT' || user?.role === 'CLIENTE';
 
   return (
     <Routes>
       <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/onboarding" element={<OnboardingPage />} />
-      <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/dashboard" element={isClient ? <ClientDashboardPage /> : <DashboardPage />} />
+      <Route path="/client-dashboard" element={<ClientDashboardPage />} />
+      <Route path="/social" element={<DashboardPage />} />
       <Route path="/profile" element={<ProfilePage />} />
-      
+      <Route path="/projects" element={<ClientDashboardPage />} />
+      <Route path="/feed" element={<ClientDashboardPage />} />
+      <Route path="/projects/new" element={<CreateProjectPage />} />
+      <Route path="/projects/create" element={<CreateProjectPage />} />
+      <Route path="/create-project" element={<CreateProjectPage />} />
+      <Route path="/projects/:id" element={<ProjectDetailPage />} />
+
       {/* Ruta interna / privada de gestión de tareas de equipo (Mini-Jira) */}
       <Route path="/ops/board" element={<KanbanPage />} />
       <Route path="/internal/kanban" element={<Navigate to="/ops/board" replace />} />
 
       <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
-      {/* Rutas futuras: /projects, /escrow */}
       <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
     </Routes>
   );

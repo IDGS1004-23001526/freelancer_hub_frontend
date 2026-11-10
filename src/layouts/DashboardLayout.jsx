@@ -59,6 +59,11 @@ export default function DashboardLayout({ children }) {
       path: '/projects',
       icon: FolderKanban,
     },
+    {
+      label: 'Métodos de Pago',
+      path: '/payment-methods',
+      icon: CreditCard,
+    },
   ];
 
   return (
@@ -187,8 +192,18 @@ export default function DashboardLayout({ children }) {
                       className="w-full py-2 px-3 rounded-xl bg-[#F3EFE6] hover:bg-[#e8dfd1] text-[#5A0F24] text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                     >
                       <Plus className="w-3.5 h-3.5 text-[#8C2C45]" />
-                      <span>Abonar +$1,000 USD de prueba</span>
+                      <span>Agregar saldo</span>
                     </button>
+
+                    <Link
+                      to="/payment-methods"
+                      onClick={() => setShowWalletMenu(false)}
+                      data-testid="link-manage-payment-methods"
+                      className="w-full py-2 px-3 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <CreditCard className="w-3.5 h-3.5" />
+                      <span>Mis tarjetas</span>
+                    </Link>
                   </div>
                 </div>
               )}

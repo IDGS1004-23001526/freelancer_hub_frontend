@@ -6,6 +6,7 @@ import OnboardingPage from '../pages/OnboardingPage.jsx';
 import ClientDashboardPage from '../pages/ClientDashboardPage.jsx';
 import CreateProjectPage from '../pages/CreateProjectPage.jsx';
 import ProjectDetailPage from '../pages/ProjectDetailPage.jsx';
+import PaymentMethodsPage from '../pages/PaymentMethodsPage.jsx';
 
 export default function AppRoutes() {
   return (
@@ -20,6 +21,9 @@ export default function AppRoutes() {
       <Route path="/projects/create" element={<CreateProjectPage />} />
       <Route path="/create-project" element={<CreateProjectPage />} />
       <Route path="/projects/:id" element={<ProjectDetailPage />} />
+      <Route path="/payment-methods" element={<PaymentMethodsPage />} />
+      <Route path="/payments" element={<PaymentMethodsPage />} />
+      <Route path="/cards" element={<PaymentMethodsPage />} />
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>

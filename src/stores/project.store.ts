@@ -109,6 +109,7 @@ interface ProjectState {
   ) => Promise<{ success: boolean; project?: ProjectConvocatoria; error?: string }>;
   getProjectById: (id: string) => ProjectConvocatoria | undefined;
   addFunds: (amount: number) => void;
+  updateActiveCard: (cardBrand: string, cardLast4: string) => void;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -191,6 +192,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const updatedWallet: ClientWalletInfo = {
       ...currentWallet,
       balance: currentWallet.balance + amount,
+    };
+    localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify(updatedWallet));
+    set({ wallet: updatedWallet });
+  },
+
+  updateActiveCard: (cardBrand: string, cardLast4: string) => {
+    const currentWallet = get().wallet;
+    const updatedWallet: ClientWalletInfo = {
+      ...currentWallet,
+      cardBrand: cardBrand || 'Tarjeta Verificada',
+      cardLast4: (cardLast4 || '0000').slice(-4),
     };
     localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify(updatedWallet));
     set({ wallet: updatedWallet });

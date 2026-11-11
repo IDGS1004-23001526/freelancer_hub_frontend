@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   X,
   ExternalLink,
@@ -293,6 +294,13 @@ export function ContractCreatedBanner({ contract, formatMoney }) {
           </p>
         </div>
       </div>
+
+      <Link
+        to="/contracts"
+        className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold shrink-0 text-center transition-colors"
+      >
+        Ir al tablero de entregas →
+      </Link>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import CreateProjectPage from '../pages/CreateProjectPage.jsx';
 import ProjectDetailPage from '../pages/ProjectDetailPage.jsx';
 import PaymentMethodsPage from '../pages/PaymentMethodsPage.jsx';
 import CandidateComparisonPage from '../pages/CandidateComparisonPage.jsx';
+import ContractKanbanPage from '../pages/ContractKanbanPage.jsx';
 
 export default function AppRoutes() {
   return (
@@ -31,6 +32,9 @@ export default function AppRoutes() {
         element={<CandidateComparisonPage />}
       />
       <Route path="/candidates" element={<CandidateComparisonPage />} />
+      <Route path="/contracts" element={<ContractKanbanPage />} />
+      <Route path="/contracts/:id" element={<ContractKanbanPage />} />
+      <Route path="/kanban" element={<ContractKanbanPage />} />
       <Route path="/payment-methods" element={<PaymentMethodsPage />} />
       <Route path="/payments" element={<PaymentMethodsPage />} />
       <Route path="/cards" element={<PaymentMethodsPage />} />

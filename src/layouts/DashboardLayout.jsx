@@ -66,6 +66,11 @@ export default function DashboardLayout({ children }) {
       icon: Users,
     },
     {
+      label: 'Tablero de Hitos',
+      path: '/contracts',
+      icon: CheckCircle2,
+    },
+    {
       label: 'Métodos de Pago',
       path: '/payment-methods',
       icon: CreditCard,

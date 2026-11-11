@@ -7,6 +7,7 @@ import ClientDashboardPage from '../pages/ClientDashboardPage.jsx';
 import CreateProjectPage from '../pages/CreateProjectPage.jsx';
 import ProjectDetailPage from '../pages/ProjectDetailPage.jsx';
 import PaymentMethodsPage from '../pages/PaymentMethodsPage.jsx';
+import CandidateComparisonPage from '../pages/CandidateComparisonPage.jsx';
 
 export default function AppRoutes() {
   return (
@@ -21,6 +22,15 @@ export default function AppRoutes() {
       <Route path="/projects/create" element={<CreateProjectPage />} />
       <Route path="/create-project" element={<CreateProjectPage />} />
       <Route path="/projects/:id" element={<ProjectDetailPage />} />
+      <Route
+        path="/projects/:id/candidates"
+        element={<CandidateComparisonPage />}
+      />
+      <Route
+        path="/projects/:id/proposals"
+        element={<CandidateComparisonPage />}
+      />
+      <Route path="/candidates" element={<CandidateComparisonPage />} />
       <Route path="/payment-methods" element={<PaymentMethodsPage />} />
       <Route path="/payments" element={<PaymentMethodsPage />} />
       <Route path="/cards" element={<PaymentMethodsPage />} />

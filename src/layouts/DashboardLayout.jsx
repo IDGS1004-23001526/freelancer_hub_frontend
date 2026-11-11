@@ -12,6 +12,7 @@ import {
   Sparkles,
   CheckCircle2,
   User,
+  Users,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/auth.store.js';
 import { useProjectStore } from '../stores/project.store.js';
@@ -58,6 +59,11 @@ export default function DashboardLayout({ children }) {
       label: 'Catálogo de Convocatorias',
       path: '/projects',
       icon: FolderKanban,
+    },
+    {
+      label: 'Candidatos',
+      path: '/candidates',
+      icon: Users,
     },
     {
       label: 'Métodos de Pago',

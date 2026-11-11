@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { projectApi } from '../api/project.api.js';
+import { getProjectProposalsCount } from '../api/candidate.api.js';
 import type {
   ProjectConvocatoria,
   CreateProjectPayload,
@@ -22,7 +23,7 @@ const INITIAL_PROJECTS: ProjectConvocatoria[] = [
       'Buscamos desarrollar un portal mayorista con pasarela de pagos retenidos en garantía, panel de proveedores en tiempo real y generación automatizada de órdenes de compra.',
     status: 'ABIERTO',
     clientName: 'Sofía Ramírez • Estudio Nexus',
-    proposalsCount: 6,
+    proposalsCount: 3,
     createdAt: '2026-11-01T14:30:00.000Z',
     updatedAt: '2026-11-01T14:30:00.000Z',
   },
@@ -38,7 +39,7 @@ const INITIAL_PROJECTS: ProjectConvocatoria[] = [
       'Necesitamos modernizar los flujos de onboarding, billetera digital y transferencias internacionales con componentes accesibles y pruebas de usabilidad.',
     status: 'ABIERTO',
     clientName: 'Sofía Ramírez • Estudio Nexus',
-    proposalsCount: 4,
+    proposalsCount: 2,
     createdAt: '2026-10-29T10:15:00.000Z',
     updatedAt: '2026-10-29T10:15:00.000Z',
   },
@@ -54,7 +55,7 @@ const INITIAL_PROJECTS: ProjectConvocatoria[] = [
       'Automatización de despliegues multi-región, monitoreo con Prometheus/Grafana y optimización de costos en contenedores de producción.',
     status: 'EN_PROGRESO',
     clientName: 'Sofía Ramírez • Estudio Nexus',
-    proposalsCount: 9,
+    proposalsCount: 4,
     createdAt: '2026-10-20T09:00:00.000Z',
     updatedAt: '2026-10-25T16:45:00.000Z',
   },
@@ -68,20 +69,38 @@ const DEFAULT_WALLET: ClientWalletInfo = {
   cardLast4: '4829',
 };
 
+function syncProjectsProposalsCount(
+  list: ProjectConvocatoria[]
+): ProjectConvocatoria[] {
+  return list.map((proj) => ({
+    ...proj,
+    proposalsCount: getProjectProposalsCount(proj.id, {
+      title: proj.title,
+      category: proj.category,
+      budget: proj.budget,
+      currency: proj.currency,
+      skills: proj.skills,
+    }),
+  }));
+}
+
 function loadInitialProjects(): ProjectConvocatoria[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        const synced = syncProjectsProposalsCount(parsed);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(synced));
+        return synced;
       }
     }
   } catch {
     // Fallback to initial seed
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_PROJECTS));
-  return INITIAL_PROJECTS;
+  const syncedInitial = syncProjectsProposalsCount(INITIAL_PROJECTS);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(syncedInitial));
+  return syncedInitial;
 }
 
 function loadInitialWallet(): ClientWalletInfo {
@@ -152,8 +171,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     } catch {
       // Creación reactiva local con estado ABIERTO garantizado
       const now = new Date().toISOString();
+      const newId = `proj_${Date.now()}`;
+      const generatedCount = getProjectProposalsCount(newId, {
+        title: payload.title.trim(),
+        category: payload.category || 'Desarrollo Web',
+        budget: Number(payload.budget),
+        currency: payload.currency || 'MXN',
+        skills: payload.skills,
+      });
+
       const newProject: ProjectConvocatoria = {
-        id: `proj_${Date.now()}`,
+        id: newId,
         title: payload.title.trim(),
         category: payload.category || 'Desarrollo Web',
         budget: Number(payload.budget),
@@ -165,7 +193,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           `Convocatoria abierta para ${payload.title.trim()} en la categoría de ${payload.category || 'Desarrollo Web'}. Se requieren especialistas con dominio en ${payload.skills.join(', ')}.`,
         status: 'ABIERTO',
         clientName: clientName || 'Sofía Ramírez • Cliente Verificado',
-        proposalsCount: 0,
+        proposalsCount: generatedCount,
         createdAt: now,
         updatedAt: now,
       };

@@ -7,6 +7,9 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   server: {
     allowedHosts: true,
+    proxy: {
+      '/uploads': 'http://localhost:4000',
+    },
   },
   plugins: [
     react(),

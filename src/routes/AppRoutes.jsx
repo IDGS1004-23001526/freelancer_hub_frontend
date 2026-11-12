@@ -9,6 +9,9 @@ import ProfilePage from '../pages/ProfilePage.jsx';
 import ClientDashboardPage from '../pages/ClientDashboardPage.jsx';
 import CreateProjectPage from '../pages/CreateProjectPage.jsx';
 import ProjectDetailPage from '../pages/ProjectDetailPage.jsx';
+import PaymentMethodsPage from '../pages/PaymentMethodsPage.jsx';
+import CandidateComparisonPage from '../pages/CandidateComparisonPage.jsx';
+import ContractKanbanPage from '../pages/ContractKanbanPage.jsx';
 import { useAuthStore } from '../stores/auth.store.js';
 
 export default function AppRoutes() {
@@ -30,6 +33,15 @@ export default function AppRoutes() {
       <Route path="/projects/create" element={<CreateProjectPage />} />
       <Route path="/create-project" element={<CreateProjectPage />} />
       <Route path="/projects/:id" element={<ProjectDetailPage />} />
+      <Route path="/projects/:id/candidates" element={<CandidateComparisonPage />} />
+      <Route path="/projects/:id/proposals" element={<CandidateComparisonPage />} />
+      <Route path="/candidates" element={<CandidateComparisonPage />} />
+      <Route path="/contracts" element={<ContractKanbanPage />} />
+      <Route path="/contracts/:id" element={<ContractKanbanPage />} />
+      <Route path="/kanban" element={<ContractKanbanPage />} />
+      <Route path="/payment-methods" element={<PaymentMethodsPage />} />
+      <Route path="/payments" element={<PaymentMethodsPage />} />
+      <Route path="/cards" element={<PaymentMethodsPage />} />
 
       {/* Ruta interna / privada de gestión de tareas de equipo (Mini-Jira) */}
       <Route path="/ops/board" element={<KanbanPage />} />

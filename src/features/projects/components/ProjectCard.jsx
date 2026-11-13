@@ -104,10 +104,14 @@ export default function ProjectCard({ project, highlight = false }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold text-[#5A0F24]/70 bg-[#F3EFE6]/60 px-2.5 py-1 rounded-lg">
+          <Link
+            to={`/projects/${project.id}/candidates`}
+            data-testid={`btn-compare-candidates-${project.id}`}
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#5A0F24] bg-[#F3EFE6] hover:bg-[#e8dfd1] px-2.5 py-2 rounded-xl border border-[#C9B8A6]/50 transition-colors"
+          >
             <Users className="w-3.5 h-3.5 text-[#8C2C45]" />
-            {project.proposalsCount || 0} propuestas
-          </span>
+            <span>{project.proposalsCount || 2} candidatos</span>
+          </Link>
 
           <Link
             to={`/projects/${project.id}`}

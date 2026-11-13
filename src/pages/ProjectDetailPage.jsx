@@ -13,8 +13,10 @@ import {
   FolderKanban,
   UserCheck,
   Clock,
+  Users,
 } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout.jsx';
+import CandidateComparisonView from '../features/projects/components/CandidateComparisonView.jsx';
 import { useProjectStore } from '../stores/project.store.js';
 
 export default function ProjectDetailPage() {
@@ -264,15 +266,29 @@ export default function ProjectDetailPage() {
               Ir al Catálogo de Proyectos
             </Link>
 
-            <Link
-              to="/projects/new"
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ Publicar Otra Convocatoria</span>
-            </Link>
+            <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2.5">
+              <Link
+                to={`/projects/${project.id}/candidates`}
+                data-testid="link-compare-candidates"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#5A0F24] hover:bg-[#8C2C45] text-[#F3EFE6] text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Users className="w-4 h-4 text-[#C68A8F]" />
+                <span>Abrir comparador en pantalla completa</span>
+              </Link>
+
+              <Link
+                to="/projects/new"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Publicar Otra Convocatoria</span>
+              </Link>
+            </div>
           </div>
         </article>
+
+        {/* Matriz Comparativa de Candidatos integrada en el detalle */}
+        <CandidateComparisonView project={project} />
       </div>
     </DashboardLayout>
   );

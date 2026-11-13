@@ -80,3 +80,77 @@ export function formatCurrency(amount: number, currency: string = 'MXN'): string
     currency,
   }).format(amount);
 }
+
+export type CardBrand = 'Visa' | 'Mastercard' | 'Amex' | 'Desconocida';
+
+/**
+ * Strips all non-digit characters from a card number string
+ */
+export function sanitizeCardDigits(value: string): string {
+  return (value || '').replace(/\D/g, '');
+}
+
+/**
+ * Detects card franchise (Visa, Mastercard, Amex) from digits
+ */
+export function detectCardBrand(value: string): CardBrand {
+  const digits = sanitizeCardDigits(value);
+  if (!digits) return 'Desconocida';
+
+  if (/^4/.test(digits)) {
+    return 'Visa';
+  }
+  if (/^(5[1-5]|222[1-9]|22[3-9]\d|2[3-6]\d{2}|27[01]\d|2720)/.test(digits)) {
+    return 'Mastercard';
+  }
+  if (/^3[47]/.test(digits)) {
+    return 'Amex';
+  }
+  return 'Desconocida';
+}
+
+/**
+ * Validates a credit/debit card number using the Luhn algorithm (Mod 10)
+ */
+export function isValidLuhn(value: string): boolean {
+  const digits = sanitizeCardDigits(value);
+  const brand = detectCardBrand(digits);
+
+  if (brand === 'Amex') {
+    if (digits.length !== 15) return false;
+  } else if (digits.length < 13 || digits.length > 19) {
+    return false;
+  }
+
+  // Reject all-zeros
+  if (/^0+$/.test(digits)) return false;
+
+  let sum = 0;
+  let shouldDouble = false;
+
+  for (let i = digits.length - 1; i >= 0; i -= 1) {
+    let digit = parseInt(digits.charAt(i), 10);
+
+    if (shouldDouble) {
+      digit *= 2;
+      if (digit > 9) {
+        digit -= 9;
+      }
+    }
+
+    sum += digit;
+    shouldDouble = !shouldDouble;
+  }
+
+  return sum % 10 === 0;
+}
+
+/**
+ * Masks a card number so only the last 4 digits are visible: **** **** **** 4242
+ */
+export function maskCardNumber(valueOrLast4: string): string {
+  const digits = sanitizeCardDigits(valueOrLast4);
+  const last4 = digits.slice(-4).padStart(4, '*');
+  return `**** **** **** ${last4}`;
+}
+

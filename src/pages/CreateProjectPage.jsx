@@ -54,7 +54,7 @@ export default function CreateProjectPage() {
 
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F3EFE6] border border-[#C9B8A6] text-[11px] font-bold text-[#5A0F24]">
             <ShieldCheck className="w-3.5 h-3.5 text-[#8C2C45]" />
-            <span>HU-01 • Creación de Convocatorias</span>
+            <span>Nueva convocatoria</span>
           </span>
         </div>
 

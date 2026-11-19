@@ -23,3 +23,8 @@ dev-dist
 *.njsproj
 *.sln
 *.sw?
+
+
+# resultados de los test
+/test-results
+/playwright-report

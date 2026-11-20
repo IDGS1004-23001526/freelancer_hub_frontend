@@ -1,11 +1,11 @@
 /**
- * Zustand store for the HU-11 Contextual Chat module.
+- Zustand store for the HU-11 Contextual Chat module.
  *
- * Responsibilities:
- *   - Hold the list of conversations (sidebar)
- *   - Hold messages for the currently open conversation
- *   - Control the drawer open/close state and which conversation is active
- *   - Expose actions consumed by components and the socket hook
+- Responsibilities:
+-   - Hold the list of conversations (sidebar)
+-   - Hold messages for the currently open conversation
+-   - Control the drawer open/close state and which conversation is active
+-   - Expose actions consumed by components and the socket hook
  */
 import { create } from 'zustand';
 import { chatApi } from '../api/chat.api.js';
@@ -79,6 +79,17 @@ interface ChatState {
   closeDrawer: () => void;
   loadMessages: (conversationId: string, currentUserId: string) => Promise<void>;
   sendMessage: (conversationId: string, content: string, currentUserId: string) => Promise<void>;
+  sendAttachment: (
+    conversationId: string,
+    file: File | Blob | string,
+    content: string,
+    currentUserId: string
+  ) => Promise<void>;
+  startConversation: (payload: {
+    peerId: string;
+    projectId?: string | null;
+    projectName?: string;
+  }) => Promise<Conversation | null>;
   handleIncomingMessage: (payload: NewMessageSocketPayload, currentUserId: string) => void;
   handleIncomingNotification: (payload: NewMessageSocketPayload) => void;
   markConversationRead: (conversationId: string, currentUserId: string) => void;
@@ -116,6 +127,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
         loadingConversations: false,
         error: err?.response?.data?.message ?? err?.message ?? 'Error al cargar conversaciones.',
       });
+    }
+  },
+
+  startConversation: async ({ peerId, projectId = null, projectName }) => {
+    set({ loadingConversations: true, error: null });
+    try {
+      const conv = await chatApi.createOrFindConversation({ peerId, projectId, projectName });
+      await get().loadConversations();
+      set({
+        loadingConversations: false,
+        drawer: {
+          isOpen: true,
+          conversationId: conv.id,
+          projectId: conv.projectId ?? projectId ?? null,
+          projectName: conv.projectName ?? projectName ?? null,
+          peerName: conv.peerName ?? null,
+        },
+      });
+      return conv;
+    } catch (err: any) {
+      set({
+        loadingConversations: false,
+        error:
+          err?.response?.data?.message ?? err?.message ?? 'Error al iniciar la conversación.',
+      });
+      return null;
     }
   },
 
@@ -224,6 +261,50 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
+  sendAttachment: async (
+    conversationId: string,
+    file: File | Blob | string,
+    content: string,
+    currentUserId: string
+  ) => {
+    set({ sendingMessage: true, error: null });
+    try {
+      const saved: any = await chatApi.uploadAttachment(
+        conversationId,
+        file as any,
+        content
+      );
+      const enriched: ChatMessage = {
+        ...saved,
+        isMine: saved.senderId === currentUserId,
+      };
+      const exists = get().messages.some((m) => m.id === enriched.id);
+      const updated = exists ? get().messages : [...get().messages, enriched];
+      set({
+        messages: updated,
+        dayGroups: groupMessagesByDay(updated),
+        sendingMessage: false,
+        conversations: get().conversations.map((conv) =>
+          conv.id === conversationId
+            ? {
+                ...conv,
+                lastMessage:
+                  enriched.content || (enriched.attachmentUrl ? '📷 Imagen adjunta' : ''),
+                lastMessageTime: enriched.createdAt,
+                lastMessageIsMine: true,
+              }
+            : conv
+        ),
+      });
+    } catch (err: any) {
+      set({
+        sendingMessage: false,
+        error:
+          err?.response?.data?.message ?? err?.message ?? 'Error al enviar el archivo adjunto.',
+      });
+    }
+  },
+
   // ── Socket event handlers ──────────────────────────────────────────────────
 
   handleIncomingMessage: (payload: NewMessageSocketPayload, currentUserId: string) => {
@@ -272,9 +353,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
           lastMessage: payload.content,
           lastMessageTime: payload.createdAt,
           lastMessageIsMine: isMine,
-          unreadCount: !isMine && (!drawer.isOpen || drawer.conversationId !== convId)
-            ? conv.unreadCount + 1
-            : conv.unreadCount,
+          unreadCount:
+            !isMine && (!drawer.isOpen || drawer.conversationId !== convId)
+              ? conv.unreadCount + 1
+              : conv.unreadCount,
         };
       }),
     }));

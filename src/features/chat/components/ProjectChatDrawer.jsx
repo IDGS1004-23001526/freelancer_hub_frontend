@@ -1,32 +1,5 @@
 /**
-- ProjectChatDrawer – HU-11 Drawer Lateral de Chat Contextual por Proyecto.
- *
-- Layout (matches Figma mockup):
-- ┌──────────────────────────────────────────────────────────────┐
-- │  Navbar (DashboardLayout)                                    │
-- ├──────────────────────────────────────────────────────────────┤
-- │ Conversations │       Message area        │  Context panel  │
-- │   sidebar     │  ─────────────────────── │  (contract /    │
-- │               │  chronological messages  │   rules)        │
-- │               │  with day separators     │                 │
-- │               │                         │                 │
-- │               │  [ChatInput]            │                 │
-- └───────────────┴─────────────────────────┴─────────────────┘
- *
-- The drawer slides in from the right edge of the page and does NOT block
-- navigation in the rest of the app (it's overlaid with pointer-events only
-- on its own surface).
- *
-- Socket.io connection:
--   - Authenticates via JWT Bearer (from useAuthStore)
--   - Joins/leaves rooms per conversation
--   - Receives 'new_message', 'typing', 'stop_typing', 'message_read'
- *
-- REST endpoints consumed:
--   GET  /api/v1/chats              → conversation list
--   GET  /api/v1/chats/:id/messages → message history
--   POST /api/v1/chats/:id/messages → send message
--   PATCH /api/v1/chats/:id/read   → mark read
+ * ProjectChatDrawer – HU-11 Drawer Lateral de Chat Contextual por Proyecto.
  */
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import {
@@ -38,23 +11,27 @@ import {
   Loader2,
   RefreshCw,
   PenLine,
+  UserPlus,
+  Search,
+  Paperclip,
+  Send,
 } from 'lucide-react';
 import { useChatStore } from '../../../stores/chat.store.js';
 import { useAuthStore } from '../../../stores/auth.store.js';
 import { useChatSocket } from '../hooks/useChatSocket.js';
+import { chatApi } from '../../../api/chat.api.js';
 import ChatMessageBubble from './ChatMessageBubble.jsx';
 import ChatDaySeparator from './ChatDaySeparator.jsx';
 import ChatConversationItem from './ChatConversationItem.jsx';
-import ChatInput from './ChatInput.jsx';
 import ChatAccessDenied from './ChatAccessDenied.jsx';
 import ContractContextPanel from './ContractContextPanel.jsx';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function getInitials(name) {
+function getInitials(name = '') {
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  return name.slice(0, 2).toUpperCase();
+  return name.slice(0, 2).toUpperCase() || 'U';
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -79,15 +56,33 @@ export default function ProjectChatDrawer({
     closeDrawer,
     loadMessages,
     sendMessage,
+    sendAttachment,
+    startConversation,
     handleIncomingMessage,
     handleIncomingNotification,
     markConversationRead,
     clearError,
   } = useChatStore();
 
+  const messagesContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const prevConversationIdRef = useRef(null);
+  const prevMessagesLenRef = useRef(0);
+
   const [isPeerTyping, setIsPeerTyping] = useState(false);
   const typingTimeoutRef = useRef(null);
+
+  // Input de mensaje y adjunto
+  const [messageText, setMessageText] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+
+  // Modal de nueva conversación
+  const [isNewChatOpen, setIsNewChatOpen] = useState(false);
+  const [contactSearch, setContactSearch] = useState('');
+  const [contacts, setContacts] = useState([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [projectIdInput, setProjectIdInput] = useState('');
 
   const currentUserId = user?.id ?? user?.sub ?? '';
 
@@ -161,11 +156,29 @@ export default function ProjectChatDrawer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawer.conversationId, drawer.isOpen]);
 
-  // ── Auto-scroll to latest message ─────────────────────────────────────────
+  // ── Smart auto-scroll (no te regresa si estás leyendo mensajes anteriores) ─
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isPeerTyping]);
+    const container = messagesContainerRef.current;
+    const convChanged = drawer.conversationId !== prevConversationIdRef.current;
+    const lastMsg = messages[messages.length - 1];
+    const sentByMe = Boolean(lastMsg?.isMine && messages.length > prevMessagesLenRef.current);
+
+    prevConversationIdRef.current = drawer.conversationId;
+    prevMessagesLenRef.current = messages.length;
+
+    if (!container || messages.length === 0) return;
+
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    const isNearBottom = distanceFromBottom < 150;
+
+    if (convChanged || sentByMe || isNearBottom) {
+      messagesEndRef.current?.scrollIntoView({
+        behavior: convChanged ? 'auto' : 'smooth',
+      });
+    }
+  }, [messages, drawer.conversationId]);
 
   // ── Mark as read when user opens a conversation ────────────────────────────
 
@@ -176,6 +189,26 @@ export default function ProjectChatDrawer({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawer.isOpen, drawer.conversationId, messages.length]);
+
+  // ── Contacts search ────────────────────────────────────────────────────────
+
+  const fetchContacts = async (query = '') => {
+    setLoadingContacts(true);
+    try {
+      const list = await chatApi.getContacts(query);
+      setContacts(list);
+    } catch {
+      setContacts([]);
+    } finally {
+      setLoadingContacts(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isNewChatOpen) {
+      fetchContacts(contactSearch);
+    }
+  }, [isNewChatOpen, contactSearch]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -198,17 +231,46 @@ export default function ProjectChatDrawer({
     loadConversations();
   };
 
-  const handleSend = (content) => {
+  const handleStartChatWithContact = async (contact) => {
+    const trimmedProjectId = projectIdInput.trim() || null;
+    const created = await startConversation({
+      peerId: contact.id,
+      projectId: trimmedProjectId,
+    });
+    if (created?.id) {
+      setIsNewChatOpen(false);
+      setContactSearch('');
+      setProjectIdInput('');
+      await loadMessages(created.id, currentUserId);
+    }
+  };
+
+  const handleSendSubmit = async (e) => {
+    e.preventDefault();
     if (!drawer.conversationId || !currentUserId) return;
-    sendMessage(drawer.conversationId, content, currentUserId);
+
+    const trimmed = messageText.trim();
+    if (!trimmed && !selectedFile) return;
+
+    sendStopTyping(drawer.conversationId);
+
+    if (selectedFile) {
+      await sendAttachment(drawer.conversationId, selectedFile, trimmed, currentUserId);
+      setSelectedFile(null);
+      setMessageText('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setMessageText('');
+    await sendMessage(drawer.conversationId, trimmed, currentUserId);
   };
 
-  const handleTypingStart = () => {
-    if (drawer.conversationId) sendTyping(drawer.conversationId);
-  };
-
-  const handleTypingStop = () => {
-    if (drawer.conversationId) sendStopTyping(drawer.conversationId);
+  const handleInputChange = (e) => {
+    setMessageText(e.target.value);
+    if (drawer.conversationId) {
+      sendTyping(drawer.conversationId);
+    }
   };
 
   // is403 error?
@@ -218,8 +280,6 @@ export default function ProjectChatDrawer({
     error?.toLowerCase().includes('no tienes permiso');
 
   const activeConversation = conversations.find((c) => c.id === drawer.conversationId);
-
-  // ── Render: Trigger button (always visible in layout) ─────────────────────
 
   return (
     <>
@@ -265,15 +325,24 @@ export default function ProjectChatDrawer({
             style={{ width: 'min(96vw, 900px)' }}
           >
             {/* ── LEFT: Conversations sidebar ── */}
-            <aside className="w-52 shrink-0 bg-[#F3EFE6] border-r border-[#C9B8A6]/50 flex flex-col overflow-hidden">
+            <aside className="w-56 shrink-0 bg-[#F3EFE6] border-r border-[#C9B8A6]/50 flex flex-col overflow-hidden">
               {/* Sidebar header */}
-              <div className="px-3 py-4 border-b border-[#C9B8A6]/40">
-                <div className="flex items-center gap-2 mb-3">
-                  <MessageCircle className="w-4 h-4 text-[#8C2C45]" />
-                  <h2 className="text-xs font-extrabold text-[#5A0F24] uppercase tracking-wider">
+              <div className="px-3 py-3.5 border-b border-[#C9B8A6]/40 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <MessageCircle className="w-4 h-4 text-[#8C2C45] shrink-0" />
+                  <h2 className="text-xs font-extrabold text-[#5A0F24] uppercase tracking-wider truncate">
                     Conversaciones
                   </h2>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setIsNewChatOpen(true)}
+                  title="Iniciar nueva conversación"
+                  className="flex items-center gap-1 text-[10px] font-bold bg-[#8C2C45] hover:bg-[#5A0F24] text-white px-2 py-1 rounded-lg transition cursor-pointer shrink-0"
+                >
+                  <UserPlus className="w-3 h-3" />
+                  <span>Nuevo</span>
+                </button>
               </div>
 
               {/* Conversation list */}
@@ -298,14 +367,14 @@ export default function ProjectChatDrawer({
                 )}
               </div>
 
-              {/* Open external chat link (matches mockup "Abrir chat de proyecto ajeno") */}
+              {/* Refresh conversations */}
               <div className="p-3 border-t border-[#C9B8A6]/40">
                 <button
                   type="button"
                   className="w-full text-[10px] font-semibold text-[#8C2C45] hover:text-[#5A0F24] border border-[#C68A8F]/50 hover:border-[#8C2C45] rounded-xl py-2 px-3 transition-all cursor-pointer text-center"
                   onClick={() => loadConversations()}
                 >
-                  Abrir chat de proyecto ajeno
+                  Actualizar conversaciones
                 </button>
               </div>
             </aside>
@@ -329,8 +398,9 @@ export default function ProjectChatDrawer({
                         <p className="text-xs font-extrabold text-[#5A0F24] truncate">
                           {activeConversation.peerName}
                         </p>
-                        <p className="text-[9px] text-[#5A0F24]/60 font-medium">
-                          {activeConversation.isOnline ? '· en línea' : '· sin conexión'}
+                        <p className="text-[9px] text-[#5A0F24]/60 font-medium truncate">
+                          {activeConversation.projectName ||
+                            (activeConversation.isOnline ? '· en línea' : '· sin conexión')}
                         </p>
                       </div>
                     </>
@@ -338,7 +408,7 @@ export default function ProjectChatDrawer({
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  {/* Contract ID badge */}
+                  {/* Contract ID badge 
                   {drawer.conversationId && (
                     <span className="hidden sm:block text-[9px] font-bold uppercase tracking-wider bg-[#8C2C45]/10 text-[#8C2C45] border border-[#8C2C45]/30 px-2 py-0.5 rounded-full">
                       {drawer.conversationId.startsWith('CT-')
@@ -346,7 +416,8 @@ export default function ProjectChatDrawer({
                         : `CT-${drawer.conversationId.slice(0, 8).toUpperCase()}`}
                     </span>
                   )}
-
+                    */}
+                    
                   {/* Connection indicator */}
                   {isConnected ? (
                     <Wifi className="w-3.5 h-3.5 text-emerald-500" title="WebSocket conectado" />
@@ -378,7 +449,7 @@ export default function ProjectChatDrawer({
               )}
 
               {/* Messages area */}
-              <div className="flex-1 overflow-y-auto px-4 py-4">
+              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4">
                 {loadingMessages ? (
                   <div className="flex flex-col items-center justify-center h-full gap-3 text-[#5A0F24]/50">
                     <Loader2 className="w-6 h-6 animate-spin text-[#8C2C45]" />
@@ -462,15 +533,73 @@ export default function ProjectChatDrawer({
                 )}
               </div>
 
-              {/* Input bar – hidden on 403 */}
+              {/* Input bar con soporte de texto, enlaces y adjuntos */}
               {!isAccessDenied && drawer.conversationId && (
-                <ChatInput
-                  conversationId={drawer.conversationId}
-                  disabled={sendingMessage || loadingMessages}
-                  onSend={handleSend}
-                  onTypingStart={handleTypingStart}
-                  onTypingStop={handleTypingStop}
-                />
+                <form
+                  onSubmit={handleSendSubmit}
+                  className="bg-white border-t border-[#C9B8A6]/40 p-3 shrink-0 space-y-2"
+                >
+                  {selectedFile && (
+                    <div className="flex items-center justify-between bg-[#F3EFE6] px-3 py-1.5 rounded-xl text-xs text-[#5A0F24]">
+                      <span className="truncate font-medium">📎 {selectedFile.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedFile(null);
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                        className="text-[#8C2C45] hover:text-[#5A0F24] cursor-pointer ml-2"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+                    />
+                    <button
+                      type="button"
+                      disabled={sendingMessage || loadingMessages}
+                      onClick={() => fileInputRef.current?.click()}
+                      title="Adjuntar imagen"
+                      className="p-2.5 rounded-xl bg-[#F3EFE6] hover:bg-[#C9B8A6]/30 text-[#5A0F24] transition cursor-pointer disabled:opacity-50"
+                    >
+                      <Paperclip className="w-4 h-4" />
+                    </button>
+
+                    <input
+                      type="text"
+                      value={messageText}
+                      onChange={handleInputChange}
+                      disabled={sendingMessage || loadingMessages}
+                      placeholder="Escribe un mensaje o enlace..."
+                      className="flex-1 bg-[#F3EFE6] text-xs sm:text-sm text-[#2b1b1e] placeholder-[#5A0F24]/50 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#8C2C45] focus:bg-white transition border border-[#C9B8A6]/30"
+                    />
+
+                    <button
+                      type="submit"
+                      disabled={
+                        sendingMessage ||
+                        loadingMessages ||
+                        (!messageText.trim() && !selectedFile)
+                      }
+                      className="px-4 py-2.5 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] disabled:bg-[#C9B8A6]/50 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                      {sendingMessage ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                      <span className="hidden sm:inline">Enviar</span>
+                    </button>
+                  </div>
+                </form>
               )}
             </main>
 
@@ -479,6 +608,83 @@ export default function ProjectChatDrawer({
               <ContractContextPanel contractContext={contractContext} />
             </aside>
           </div>
+
+          {/* ── MODAL: Iniciar nueva conversación ── */}
+          {isNewChatOpen && (
+            <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl w-full max-w-md shadow-xl border border-[#C9B8A6]/50 overflow-hidden">
+                <div className="px-4 py-3 border-b border-[#C9B8A6]/30 flex items-center justify-between">
+                  <h3 className="text-sm font-extrabold text-[#5A0F24]">Nueva conversación</h3>
+                  <button
+                    type="button"
+                    onClick={() => setIsNewChatOpen(false)}
+                    className="p-1 rounded-lg text-[#5A0F24]/60 hover:bg-[#F3EFE6] cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="p-4 space-y-3">
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-[#C9B8A6] absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={contactSearch}
+                      onChange={(e) => setContactSearch(e.target.value)}
+                      placeholder="Buscar por nombre o correo..."
+                      className="w-full bg-[#F3EFE6] text-xs rounded-xl pl-9 pr-3 py-2 border border-[#C9B8A6]/40 focus:outline-none focus:ring-2 focus:ring-[#8C2C45]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-[#5A0F24]/70 uppercase mb-1">
+                      ID de proyecto (opcional, UUID)
+                    </label>
+                    <input
+                      type="text"
+                      value={projectIdInput}
+                      onChange={(e) => setProjectIdInput(e.target.value)}
+                      placeholder="Ej. 550e8400-e29b-41d4-a716-446655440000"
+                      className="w-full bg-[#F3EFE6] text-xs rounded-xl px-3 py-2 border border-[#C9B8A6]/40 focus:outline-none focus:ring-2 focus:ring-[#8C2C45]"
+                    />
+                  </div>
+
+                  <div className="max-h-56 overflow-y-auto divide-y divide-[#C9B8A6]/20 border border-[#C9B8A6]/30 rounded-xl">
+                    {loadingContacts ? (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="w-5 h-5 text-[#8C2C45] animate-spin" />
+                      </div>
+                    ) : contacts.length === 0 ? (
+                      <p className="text-xs text-[#5A0F24]/50 text-center py-6">
+                        No se encontraron contactos.
+                      </p>
+                    ) : (
+                      contacts.map((contact) => (
+                        <button
+                          key={contact.id}
+                          type="button"
+                          onClick={() => handleStartChatWithContact(contact)}
+                          className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-[#F3EFE6] transition text-left cursor-pointer"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-[#5A0F24] truncate">
+                              {contact.name}
+                            </p>
+                            <p className="text-[10px] text-[#2b1b1e]/60 truncate">
+                              {contact.email}
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-bold text-[#8C2C45] shrink-0 ml-2">
+                            Chatear →
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </>

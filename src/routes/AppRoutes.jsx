@@ -12,6 +12,7 @@ import ProjectDetailPage from '../pages/ProjectDetailPage.jsx';
 import PaymentMethodsPage from '../pages/PaymentMethodsPage.jsx';
 import CandidateComparisonPage from '../pages/CandidateComparisonPage.jsx';
 import ContractKanbanPage from '../pages/ContractKanbanPage.jsx';
+import MessagesPage from '../pages/MessagesPage.jsx';
 import { useAuthStore } from '../stores/auth.store.js';
 
 export default function AppRoutes() {
@@ -42,6 +43,10 @@ export default function AppRoutes() {
       <Route path="/payment-methods" element={<PaymentMethodsPage />} />
       <Route path="/payments" element={<PaymentMethodsPage />} />
       <Route path="/cards" element={<PaymentMethodsPage />} />
+
+      {/* HU-11: Mensajería contextual por proyecto */}
+      <Route path="/messages" element={<MessagesPage />} />
+      <Route path="/messages/:conversationId" element={<MessagesPage />} />
 
       {/* Ruta interna / privada de gestión de tareas de equipo (Mini-Jira) */}
       <Route path="/ops/board" element={<KanbanPage />} />

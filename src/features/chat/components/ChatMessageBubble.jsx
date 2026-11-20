@@ -1,37 +1,85 @@
 /**
-- ChatMessageBubble – renders a single chat message.
+ * ChatMessageBubble – renders a single chat message.
  *
-- Layout rules (matching Figma mockup HU-11):
--   - Own messages: right-aligned, palette wine (#8C2C45) background, white text
--   - Peer messages: left-aligned, white background, dark text
--   - Shows time and read indicator
--   - Detects URLs in content and renders them as clickable links
+ * Layout rules (matching Figma mockup HU-11):
+ *   - Own messages: right-aligned, palette wine (#8C2C45) background, white text
+ *   - Peer messages: left-aligned, white background, dark text
+ *   - Shows time and read indicator
+ *   - Detects URLs and [gif:URL] tags in content and renders them properly
  */
 import React, { useMemo } from 'react';
 import { Check, CheckCheck } from 'lucide-react';
 
-/** Finds URLs in message content and wraps them in anchor tags */
-function renderContent(text) {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const parts = text.split(urlRegex);
+/** Finds [gif:URL] tags and URLs in message content and renders them */
+function renderContent(text = '', attachmentUrl = null) {
+  const safeText = typeof text === 'string' ? text : '';
+  const combinedRegex = /(\[gif:https?:\/\/[^\]]+\]|https?:\/\/[^\s]+)/gi;
+  const parts = safeText.split(combinedRegex);
 
-  return parts.map((part, i) => {
-    if (urlRegex.test(part)) {
-      urlRegex.lastIndex = 0; // reset stateful regex
-      return (
+  return (
+    <div className="space-y-1.5 break-words">
+      {attachmentUrl && (
         <a
-          key={i}
-          href={part}
+          href={attachmentUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="underline underline-offset-2 hover:opacity-80 transition-opacity break-all"
+          className="block"
         >
-          {part}
+          <img
+            src={attachmentUrl}
+            alt="Adjunto"
+            loading="lazy"
+            className="max-w-[240px] max-h-60 rounded-xl object-cover border border-[#C9B8A6]/30"
+          />
         </a>
-      );
-    }
-    return <span key={i}>{part}</span>;
-  });
+      )}
+
+      {safeText && (
+        <div className="space-y-1">
+          {parts.map((part, i) => {
+            if (!part) return null;
+
+            const gifMatch = part.match(/^\[gif:(https?:\/\/[^\]]+)\]$/i);
+            if (gifMatch) {
+              const gifUrl = gifMatch[1];
+              return (
+                <a
+                  key={i}
+                  href={gifUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
+                >
+                  <img
+                    src={gifUrl}
+                    alt="GIF"
+                    loading="lazy"
+                    className="max-w-[240px] max-h-60 rounded-xl object-cover border border-[#C9B8A6]/30"
+                  />
+                </a>
+              );
+            }
+
+            if (/^https?:\/\/[^\s]+$/i.test(part)) {
+              return (
+                <a
+                  key={i}
+                  href={part}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2 hover:opacity-80 transition-opacity break-all"
+                >
+                  {part}
+                </a>
+              );
+            }
+
+            return <span key={i}>{part}</span>;
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function formatTime(isoString) {
@@ -43,7 +91,10 @@ function formatTime(isoString) {
 }
 
 export default function ChatMessageBubble({ message, showSenderName }) {
-  const content = useMemo(() => renderContent(message.content), [message.content]);
+  const content = useMemo(
+    () => renderContent(message.content, message.attachmentUrl),
+    [message.content, message.attachmentUrl]
+  );
 
   if (message.isMine) {
     // ── Own message ──────────────────────────────────────────────────────────

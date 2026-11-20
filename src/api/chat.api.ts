@@ -77,4 +77,20 @@ export const chatApi = {
     const res = await apiClient.get<ApiResponse<ChatContact[]>>('/v1/chats/contacts', { params });
     return res.data?.data ?? [];
   },
+
+  uploadAttachment: async (conversationId: string, file: File, content = '') => {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (content && content.trim()) {
+    formData.append('content', content.trim());
+  }
+  const res = await apiClient.post(
+    `/v1/chats/${conversationId}/attachments`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  );
+  if (!res.data?.data) throw new Error('Invalid server response when uploading attachment');
+  return res.data.data;
+},
+
 };

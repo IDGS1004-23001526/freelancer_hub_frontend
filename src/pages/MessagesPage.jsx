@@ -1,9 +1,6 @@
 /**
 - MessagesPage – /messages route.
 - Full-screen chat view that mirrors the Figma mockup "HU-11 / Chat activo".
- *
-- This page is standalone (not a drawer) and renders the full chat layout
-- directly inside DashboardLayout.
  */
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -14,22 +11,27 @@ import {
   PenLine,
   Wifi,
   WifiOff,
+  UserPlus,
+  Search,
+  Paperclip,
+  Send,
+  X,
 } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout.jsx';
 import ChatConversationItem from '../features/chat/components/ChatConversationItem.jsx';
 import ChatMessageBubble from '../features/chat/components/ChatMessageBubble.jsx';
 import ChatDaySeparator from '../features/chat/components/ChatDaySeparator.jsx';
-import ChatInput from '../features/chat/components/ChatInput.jsx';
 import ChatAccessDenied from '../features/chat/components/ChatAccessDenied.jsx';
 import ContractContextPanel from '../features/chat/components/ContractContextPanel.jsx';
 import { useChatStore } from '../stores/chat.store.js';
 import { useAuthStore } from '../stores/auth.store.js';
 import { useChatSocket } from '../features/chat/hooks/useChatSocket.js';
+import { chatApi } from '../api/chat.api.js';
 
-function getInitials(name) {
+function getInitials(name = '') {
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  return name.slice(0, 2).toUpperCase();
+  return name.slice(0, 2).toUpperCase() || 'U';
 }
 
 export default function MessagesPage() {
@@ -49,6 +51,8 @@ export default function MessagesPage() {
     openDrawer,
     loadMessages,
     sendMessage,
+    sendAttachment,
+    startConversation,
     handleIncomingMessage,
     handleIncomingNotification,
     markConversationRead,
@@ -56,8 +60,19 @@ export default function MessagesPage() {
   } = useChatStore();
 
   const [isPeerTyping, setIsPeerTyping] = useState(false);
+  const [messageText, setMessageText] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+
+  // Modal nuevo chat
+  const [isNewChatOpen, setIsNewChatOpen] = useState(false);
+  const [contactSearch, setContactSearch] = useState('');
+  const [contacts, setContacts] = useState([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [projectIdInput, setProjectIdInput] = useState('');
+
   const typingTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
   const currentUserId = user?.id ?? user?.sub ?? '';
 
   const activeConversation = conversations.find((c) => c.id === drawer.conversationId);
@@ -126,6 +141,26 @@ export default function MessagesPage() {
     }
   }, [drawer.conversationId, messages.length]);
 
+  // ── Contacts search ────────────────────────────────────────────────────────
+
+  const fetchContacts = async (query = '') => {
+    setLoadingContacts(true);
+    try {
+      const list = await chatApi.getContacts(query);
+      setContacts(list);
+    } catch {
+      setContacts([]);
+    } finally {
+      setLoadingContacts(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isNewChatOpen) {
+      fetchContacts(contactSearch);
+    }
+  }, [isNewChatOpen, contactSearch]);
+
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   const handleSelectConversation = (conv) => {
@@ -138,17 +173,52 @@ export default function MessagesPage() {
     navigate(`/messages/${conv.id}`, { replace: true });
   };
 
-  const handleSend = (content) => {
+  const handleStartChatWithContact = async (contact) => {
+    const trimmedProjectId = projectIdInput.trim() || null;
+    const created = await startConversation({
+      peerId: contact.id,
+      projectId: trimmedProjectId,
+    });
+    if (created?.id) {
+      setIsNewChatOpen(false);
+      setContactSearch('');
+      setProjectIdInput('');
+      navigate(`/messages/${created.id}`, { replace: true });
+    }
+  };
+
+  const handleSendSubmit = async (e) => {
+    e.preventDefault();
     if (!drawer.conversationId || !currentUserId) return;
-    sendMessage(drawer.conversationId, content, currentUserId);
+
+    const trimmed = messageText.trim();
+    if (!trimmed && !selectedFile) return;
+
+    sendStopTyping(drawer.conversationId);
+
+    if (selectedFile) {
+      await sendAttachment(drawer.conversationId, selectedFile, trimmed, currentUserId);
+      setSelectedFile(null);
+      setMessageText('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setMessageText('');
+    await sendMessage(drawer.conversationId, trimmed, currentUserId);
+  };
+
+  const handleInputChange = (e) => {
+    setMessageText(e.target.value);
+    if (drawer.conversationId) {
+      sendTyping(drawer.conversationId);
+    }
   };
 
   const isAccessDenied =
     error?.toLowerCase().includes('403') ||
     error?.toLowerCase().includes('no tienes acceso') ||
     error?.toLowerCase().includes('no tienes permiso');
-
-  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <DashboardLayout>
@@ -157,14 +227,23 @@ export default function MessagesPage() {
         style={{ height: 'calc(100vh - 10rem)' }}
       >
         {/* ── LEFT: Conversations sidebar ── */}
-        <aside className="w-56 shrink-0 bg-[#F3EFE6] border-r border-[#C9B8A6]/50 flex flex-col overflow-hidden">
-          <div className="px-3 py-4 border-b border-[#C9B8A6]/40">
+        <aside className="w-60 shrink-0 bg-[#F3EFE6] border-r border-[#C9B8A6]/50 flex flex-col overflow-hidden">
+          <div className="px-3 py-3 border-b border-[#C9B8A6]/40 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <MessageCircle className="w-4 h-4 text-[#8C2C45]" />
               <h2 className="text-xs font-extrabold text-[#5A0F24] uppercase tracking-wider">
                 Conversaciones
               </h2>
             </div>
+            <button
+              type="button"
+              onClick={() => setIsNewChatOpen(true)}
+              title="Nueva conversación"
+              className="flex items-center gap-1 text-[10px] font-bold bg-[#8C2C45] hover:bg-[#5A0F24] text-white px-2 py-1 rounded-lg transition cursor-pointer"
+            >
+              <UserPlus className="w-3 h-3" />
+              <span>Nuevo</span>
+            </button>
           </div>
 
           <div className="flex-1 overflow-y-auto py-2 px-1.5 space-y-0.5">
@@ -194,14 +273,13 @@ export default function MessagesPage() {
               className="w-full text-[10px] font-semibold text-[#8C2C45] hover:text-[#5A0F24] border border-[#C68A8F]/50 hover:border-[#8C2C45] rounded-xl py-2 px-3 transition-all cursor-pointer text-center"
               onClick={() => loadConversations()}
             >
-              Abrir chat de proyecto ajeno
+              Actualizar conversaciones
             </button>
           </div>
         </aside>
 
         {/* ── CENTER: Message area ── */}
         <main className="flex-1 flex flex-col overflow-hidden min-w-0 bg-[#f6f2ee]">
-          {/* Chat header */}
           <header className="bg-white/95 border-b border-[#C9B8A6]/40 px-4 py-3 flex items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-2 min-w-0">
               {activeConversation ? (
@@ -219,7 +297,7 @@ export default function MessagesPage() {
                       {activeConversation.peerName}
                     </p>
                     <p className="text-[9px] text-[#5A0F24]/60 font-medium">
-                      {activeConversation.isOnline ? '· en línea' : '· sin conexión'}
+                      {activeConversation.projectName || 'Conversación directa'}
                     </p>
                   </div>
                 </>
@@ -273,7 +351,7 @@ export default function MessagesPage() {
             ) : !drawer.conversationId ? (
               <div className="flex flex-col items-center justify-center h-full gap-2 text-[#5A0F24]/40">
                 <MessageCircle className="w-10 h-10" />
-                <p className="text-xs font-medium">Selecciona una conversación</p>
+                <p className="text-xs font-medium">Selecciona o inicia una conversación</p>
               </div>
             ) : dayGroups.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full gap-2 text-[#5A0F24]/40">
@@ -316,15 +394,69 @@ export default function MessagesPage() {
             )}
           </div>
 
-          {/* Input */}
+          {/* Input con soporte de texto y adjuntos */}
           {!isAccessDenied && drawer.conversationId && (
-            <ChatInput
-              conversationId={drawer.conversationId}
-              disabled={sendingMessage || loadingMessages}
-              onSend={handleSend}
-              onTypingStart={() => drawer.conversationId && sendTyping(drawer.conversationId)}
-              onTypingStop={() => drawer.conversationId && sendStopTyping(drawer.conversationId)}
-            />
+            <form
+              onSubmit={handleSendSubmit}
+              className="bg-white border-t border-[#C9B8A6]/40 p-3 shrink-0 space-y-2"
+            >
+              {selectedFile && (
+                <div className="flex items-center justify-between bg-[#F3EFE6] px-3 py-1.5 rounded-xl text-xs text-[#5A0F24]">
+                  <span className="truncate font-medium">📎 {selectedFile.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                    className="text-[#8C2C45] hover:text-[#5A0F24] cursor-pointer ml-2"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+                />
+                <button
+                  type="button"
+                  disabled={sendingMessage || loadingMessages}
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Adjuntar imagen"
+                  className="p-2.5 rounded-xl bg-[#F3EFE6] hover:bg-[#C9B8A6]/30 text-[#5A0F24] transition cursor-pointer disabled:opacity-50"
+                >
+                  <Paperclip className="w-4 h-4" />
+                </button>
+
+                <input
+                  type="text"
+                  value={messageText}
+                  onChange={handleInputChange}
+                  disabled={sendingMessage || loadingMessages}
+                  placeholder="Escribe un mensaje o pega un enlace..."
+                  className="flex-1 bg-[#F3EFE6] text-xs sm:text-sm text-[#2b1b1e] placeholder-[#5A0F24]/50 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#8C2C45] focus:bg-white transition border border-[#C9B8A6]/30"
+                />
+
+                <button
+                  type="submit"
+                  disabled={sendingMessage || loadingMessages || (!messageText.trim() && !selectedFile)}
+                  className="px-4 py-2.5 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] disabled:bg-[#C9B8A6]/50 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  {sendingMessage ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  <span className="hidden sm:inline">Enviar</span>
+                </button>
+              </div>
+            </form>
           )}
         </main>
 
@@ -333,6 +465,79 @@ export default function MessagesPage() {
           <ContractContextPanel contractContext={null} />
         </aside>
       </div>
+
+      {/* ── MODAL: Iniciar nueva conversación ── */}
+      {isNewChatOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl border border-[#C9B8A6]/50 overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#C9B8A6]/30 flex items-center justify-between">
+              <h3 className="text-sm font-extrabold text-[#5A0F24]">Nueva conversación</h3>
+              <button
+                type="button"
+                onClick={() => setIsNewChatOpen(false)}
+                className="p-1 rounded-lg text-[#5A0F24]/60 hover:bg-[#F3EFE6] cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              <div className="relative">
+                <Search className="w-4 h-4 text-[#C9B8A6] absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={contactSearch}
+                  onChange={(e) => setContactSearch(e.target.value)}
+                  placeholder="Buscar por nombre o correo..."
+                  className="w-full bg-[#F3EFE6] text-xs rounded-xl pl-9 pr-3 py-2 border border-[#C9B8A6]/40 focus:outline-none focus:ring-2 focus:ring-[#8C2C45]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-[#5A0F24]/70 uppercase mb-1">
+                  ID de proyecto (opcional, UUID)
+                </label>
+                <input
+                  type="text"
+                  value={projectIdInput}
+                  onChange={(e) => setProjectIdInput(e.target.value)}
+                  placeholder="Ej. 550e8400-e29b-41d4-a716-446655440000"
+                  className="w-full bg-[#F3EFE6] text-xs rounded-xl px-3 py-2 border border-[#C9B8A6]/40 focus:outline-none focus:ring-2 focus:ring-[#8C2C45]"
+                />
+              </div>
+
+              <div className="max-h-56 overflow-y-auto divide-y divide-[#C9B8A6]/20 border border-[#C9B8A6]/30 rounded-xl">
+                {loadingContacts ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="w-5 h-5 text-[#8C2C45] animate-spin" />
+                  </div>
+                ) : contacts.length === 0 ? (
+                  <p className="text-xs text-[#5A0F24]/50 text-center py-6">
+                    No se encontraron contactos.
+                  </p>
+                ) : (
+                  contacts.map((contact) => (
+                    <button
+                      key={contact.id}
+                      type="button"
+                      onClick={() => handleStartChatWithContact(contact)}
+                      className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-[#F3EFE6] transition text-left cursor-pointer"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-[#5A0F24] truncate">{contact.name}</p>
+                        <p className="text-[10px] text-[#2b1b1e]/60 truncate">{contact.email}</p>
+                      </div>
+                      <span className="text-[10px] font-bold text-[#8C2C45] shrink-0 ml-2">
+                        Chatear →
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

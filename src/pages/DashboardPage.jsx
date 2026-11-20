@@ -31,11 +31,14 @@ import {
   LogOut,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/auth.store.js';
+import { useChatStore } from '../stores/chat.store.js';
 import { profileApi } from '../api/profile.api.js';
+import ProjectChatDrawer from '../features/chat/components/ProjectChatDrawer.jsx';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const { conversations, openDrawer, loadConversations } = useChatStore();
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
@@ -97,6 +100,26 @@ export default function DashboardPage() {
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  const handleOpenChatDrawer = () => {
+    loadConversations();
+    if (conversations.length > 0) {
+      const firstConv = conversations[0];
+      openDrawer({
+        conversationId: firstConv.id,
+        projectId: firstConv.projectId ?? null,
+        projectName: firstConv.projectName ?? null,
+        peerName: firstConv.peerName ?? null,
+      });
+    } else {
+      openDrawer({
+        conversationId: null,
+        projectId: null,
+        projectName: null,
+        peerName: null,
+      });
+    }
   };
 
   useEffect(() => {
@@ -207,11 +230,18 @@ export default function DashboardPage() {
               <Briefcase className="w-5 h-5 mb-0.5" />
               <span>Proyectos</span>
             </Link>
-            <button className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition cursor-pointer">
+            <button
+              type="button"
+              onClick={handleOpenChatDrawer}
+              className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition cursor-pointer"
+            >
               <MessageSquare className="w-5 h-5 mb-0.5" />
               <span>Mensajes</span>
             </button>
-            <button className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition cursor-pointer">
+            <button
+              type="button"
+              className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition cursor-pointer"
+            >
               <Bell className="w-5 h-5 mb-0.5" />
               <span>Avisos</span>
             </button>
@@ -710,6 +740,9 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* DRAWER LATERAL DE MENSAJERÍA CONTEXTUAL (HU-11) */}
+      <ProjectChatDrawer />
     </div>
   );
 }

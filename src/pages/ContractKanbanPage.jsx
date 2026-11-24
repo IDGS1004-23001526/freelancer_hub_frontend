@@ -18,6 +18,7 @@ import {
   X,
   Calendar,
   GripVertical,
+  Scale,
 } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout.jsx';
 import BlindReviewModal from '../features/reviews/BlindReviewModal.jsx';
@@ -302,8 +303,17 @@ export default function ContractKanbanPage() {
                 </p>
               </div>
 
-              {/* Botón de Calificación Ciega (disponible al concluir o para evaluar el contrato) */}
+              {/* Botones de Control de Alcance y Calificación Ciega */}
               <div className="flex flex-wrap items-center gap-3 shrink-0">
+                <Link
+                  to={`/contracts/${activeContract.id}/scope`}
+                  data-testid="btn-open-scope-control"
+                  className="py-2.5 px-4 rounded-2xl text-xs font-extrabold transition-all inline-flex items-center gap-2 bg-[#F3EFE6] hover:bg-[#e8dfd1] text-[#5A0F24] border border-[#C9B8A6]"
+                >
+                  <Scale className="w-4 h-4 text-[#8C2C45]" />
+                  <span>Control de Alcance</span>
+                </Link>
+
                 <button
                   type="button"
                   onClick={() => setIsReviewModalOpen(true)}

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout.jsx';
 import BlindReviewModal from '../features/reviews/BlindReviewModal.jsx';
+import DeliveryInspectionModal from '../features/contracts/components/DeliveryInspectionModal.jsx';
 import Toast from '../features/ui/Toast.jsx';
 import { useContractStore } from '../stores/contract.store.js';
 import { useAuthStore } from '../stores/auth.store.js';
@@ -131,13 +132,14 @@ export default function ContractKanbanPage() {
     };
   }, [activeContract]);
 
-  const handleStatusChange = async (milestone, nextStatus) => {
+  const handleStatusChange = async (milestone, nextStatus, notes) => {
     if (!activeContract || milestone.status === nextStatus) return;
 
     const { justCompletedContract } = await moveMilestone(
       activeContract.id,
       milestone.id,
-      nextStatus
+      nextStatus,
+      notes
     );
 
     if (nextStatus === 'APPROVED') {
@@ -159,7 +161,9 @@ export default function ContractKanbanPage() {
       setToast({
         type: 'info',
         title: 'Hito devuelto a Por Hacer',
-        message: `Se solicitaron ajustes sobre "${milestone.title}".`,
+        message: notes
+          ? `Correcciones solicitadas: "${notes}"`
+          : `Se solicitaron ajustes sobre "${milestone.title}".`,
       });
     }
 
@@ -488,12 +492,17 @@ export default function ContractKanbanPage() {
                                 setDraggedMilestoneId(null);
                                 setDragOverColumn(null);
                               }}
+                              onClick={() => {
+                                if (ms.status === 'IN_REVIEW') {
+                                  setInspectingMilestoneId(ms.id);
+                                }
+                              }}
                               data-testid={`kanban-card-${ms.id}`}
                               className={`p-4 rounded-2xl bg-white border-2 transition-all space-y-3 shadow-xs hover:shadow-md ${
                                 ms.status === 'APPROVED'
                                   ? 'border-emerald-300 bg-emerald-50/25'
                                   : ms.status === 'IN_REVIEW'
-                                    ? 'border-amber-300 bg-amber-50/20'
+                                    ? 'border-amber-300 bg-amber-50/20 cursor-pointer hover:border-amber-500 hover:shadow-md'
                                     : 'border-[#C9B8A6]/60'
                               } ${isUpdating ? 'opacity-60 pointer-events-none' : ''}`}
                             >
@@ -599,214 +608,22 @@ export default function ContractKanbanPage() {
           </div>
         )}
 
-        {/* Modal de Inspección de Entrega Técnica */}
-        {inspectingMilestone && activeContract && (
-          <div
-            role="dialog"
-            aria-modal="true"
-            data-testid="delivery-inspection-modal"
-            className="fixed inset-0 z-50 bg-[#2b1b1e]/60 backdrop-blur-xs flex items-center justify-center p-4"
-          >
-            <div className="bg-white rounded-3xl max-w-2xl w-full border border-[#C9B8A6]/60 shadow-[0_25px_65px_-15px_rgba(90,15,36,0.35)] overflow-hidden animate-fade-in">
-              {/* Cabecera */}
-              <div className="p-6 bg-gradient-to-r from-[#5A0F24] to-[#8C2C45] text-[#F3EFE6] flex items-start justify-between gap-4">
-                <div className="space-y-1">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/15 text-[11px] font-bold">
-                    <FileCheck2 className="w-3.5 h-3.5 text-[#C68A8F]" />
-                    <span>
-                      Inspección de entrega • Hito #{inspectingMilestone.order}
-                    </span>
-                  </span>
-                  <h3 className="text-lg font-extrabold tracking-tight">
-                    {inspectingMilestone.title}
-                  </h3>
-                  <p className="text-xs text-[#F3EFE6]/85">
-                    Monto asignado en custodia:{' '}
-                    <strong>
-                      {formatMoney(
-                        inspectingMilestone.amount,
-                        activeContract.currency
-                      )}
-                    </strong>
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setInspectingMilestoneId(null)}
-                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
-                  aria-label="Cerrar inspección"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Cuerpo del modal */}
-              <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
-                <div className="space-y-1.5">
-                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#5A0F24]/75">
-                    ¿Qué incluye esta etapa?
-                  </h4>
-                  <p className="text-xs md:text-sm text-[#5A0F24] bg-[#F3EFE6]/60 p-4 rounded-2xl border border-[#C9B8A6]/50 leading-relaxed">
-                    {inspectingMilestone.description}
-                  </p>
-                </div>
-
-                {inspectingMilestone.delivery ? (
-                  <>
-                    {/* Notas del especialista */}
-                    <div className="space-y-1.5">
-                      <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#5A0F24]/75">
-                        Mensaje de {activeContract.freelancerName} sobre esta entrega
-                      </h4>
-                      <p className="text-xs md:text-sm text-[#5A0F24]/90 bg-[#f6f2ee] p-4 rounded-2xl border border-[#e8deda] leading-relaxed">
-                        “{inspectingMilestone.delivery.notes}”
-                      </p>
-                    </div>
-
-                    {/* Enlaces y archivo entregado */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <a
-                        href={inspectingMilestone.delivery.repoUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-3.5 rounded-2xl bg-[#F3EFE6]/80 hover:bg-[#F3EFE6] border border-[#C9B8A6]/60 flex items-center justify-between gap-2 transition-colors"
-                      >
-                        <div>
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#8C2C45] block">
-                            Repositorio / Diseño
-                          </span>
-                          <span className="text-xs font-extrabold text-[#5A0F24]">
-                            Abrir avance enviado
-                          </span>
-                        </div>
-                        <ExternalLink className="w-4 h-4 text-[#8C2C45]" />
-                      </a>
-
-                      {inspectingMilestone.delivery.demoUrl && (
-                        <a
-                          href={inspectingMilestone.delivery.demoUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-3.5 rounded-2xl bg-[#F3EFE6]/80 hover:bg-[#F3EFE6] border border-[#C9B8A6]/60 flex items-center justify-between gap-2 transition-colors"
-                        >
-                          <div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#8C2C45] block">
-                              Demostración en vivo
-                            </span>
-                            <span className="text-xs font-extrabold text-[#5A0F24]">
-                              Probar vista interactiva
-                            </span>
-                          </div>
-                          <ExternalLink className="w-4 h-4 text-[#8C2C45]" />
-                        </a>
-                      )}
-                    </div>
-
-                    {/* Archivo y sello de integridad SHA-256 */}
-                    <div className="p-4 rounded-2xl bg-emerald-50/75 border border-emerald-200 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2.5">
-                          <FileArchive className="w-5 h-5 text-emerald-700" />
-                          <div>
-                            <p className="text-xs font-extrabold text-emerald-950">
-                              {inspectingMilestone.delivery.fileName} (
-                              {inspectingMilestone.delivery.fileSize})
-                            </p>
-                            <p className="text-[11px] text-emerald-800">
-                              Archivo verificado sin alteraciones desde su envío
-                            </p>
-                          </div>
-                        </div>
-                        <span className="px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold uppercase">
-                          Integridad verificada
-                        </span>
-                      </div>
-
-                      <div className="pt-2 border-t border-emerald-200/70 flex items-center gap-2 text-[11px] text-emerald-900/80 font-mono break-all">
-                        <Lock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                        <span>
-                          Huella SHA-256: {inspectingMilestone.delivery.sha256Hash}
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="p-5 rounded-2xl bg-[#F3EFE6]/60 border border-dashed border-[#C9B8A6] text-center space-y-2">
-                    <p className="text-xs font-bold text-[#5A0F24]">
-                      Este hito aún se encuentra en la etapa «Por Hacer».
-                    </p>
-                    <p className="text-[11px] text-[#5A0F24]/70">
-                      Puedes enviarlo a revisión para simular la recepción del entregable por parte del especialista.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Acciones del modal */}
-              <div className="px-6 py-4 bg-[#F3EFE6]/70 border-t border-[#C9B8A6]/50 flex flex-wrap items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() => setInspectingMilestoneId(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-[#5A0F24] hover:bg-[#C9B8A6]/30 transition-colors cursor-pointer"
-                >
-                  Cerrar
-                </button>
-
-                <div className="flex flex-wrap items-center gap-2.5">
-                  {inspectingMilestone.status === 'TODO' && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleStatusChange(inspectingMilestone, 'IN_REVIEW');
-                      }}
-                      className="px-4 py-2.5 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <span>Recibir entrega en revisión</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-
-                  {inspectingMilestone.status === 'IN_REVIEW' && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleStatusChange(inspectingMilestone, 'TODO');
-                          setInspectingMilestoneId(null);
-                        }}
-                        className="px-4 py-2.5 rounded-xl bg-white hover:bg-amber-50 text-amber-900 border border-amber-300 text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        <span>Solicitar ajustes</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleStatusChange(inspectingMilestone, 'APPROVED');
-                          setInspectingMilestoneId(null);
-                        }}
-                        data-testid="btn-modal-approve-milestone"
-                        className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-sm"
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>Aprobar entrega y liberar pago</span>
-                      </button>
-                    </>
-                  )}
-
-                  {inspectingMilestone.status === 'APPROVED' && (
-                    <span className="px-4 py-2 rounded-xl bg-emerald-100 text-emerald-900 text-xs font-extrabold inline-flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                      <span>Entrega aprobada y pagada</span>
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Modal de Inspección de Entrega Técnica (HU-06) */}
+        <DeliveryInspectionModal
+          isOpen={Boolean(inspectingMilestone && activeContract)}
+          milestone={inspectingMilestone}
+          contract={activeContract}
+          onClose={() => setInspectingMilestoneId(null)}
+          onApprove={(ms) => {
+            handleStatusChange(ms, 'APPROVED');
+            setInspectingMilestoneId(null);
+          }}
+          onRequestCorrections={(ms, feedback) => {
+            handleStatusChange(ms, 'TODO', feedback);
+            setInspectingMilestoneId(null);
+          }}
+          isProcessing={Boolean(updatingMilestoneId)}
+        />
 
         {/* Modal de Calificación Ciega y Feedback Recíproco (HU-13) */}
         <BlindReviewModal

@@ -5,9 +5,11 @@ import {
   CheckCircle2,
   CreditCard,
   Lock,
+  Plus,
   ShieldCheck,
   Star,
   Trash2,
+  Wallet,
 } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout.jsx';
 import CardInputForm from '../features/payments/CardInputForm.jsx';
@@ -17,12 +19,28 @@ import { maskCardNumber } from '../utils/validators.js';
 import { useProjectStore } from '../stores/project.store.js';
 
 export default function PaymentMethodsPage() {
-  const { updateActiveCard } = useProjectStore();
+  const { wallet, addFunds, updateActiveCard } = useProjectStore();
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [toast, setToast] = useState(null);
+
+  const formatMoney = (amount) =>
+    new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: wallet?.currency || 'USD',
+      minimumFractionDigits: 2,
+    }).format(amount ?? 0);
+
+  const handleAddFunds = (amount = 1000) => {
+    addFunds(amount);
+    setToast({
+      type: 'success',
+      title: 'Saldo agregado',
+      message: `Se añadieron ${formatMoney(amount)} a tu billetera disponible.`,
+    });
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -163,8 +181,50 @@ export default function PaymentMethodsPage() {
             />
           </div>
 
-          {/* Columna Derecha: Tarjetas Guardadas */}
+          {/* Columna Derecha: Billetera Escrow + Tarjetas Guardadas */}
           <div className="lg:col-span-6 space-y-6">
+            {/* Billetera & Custodia Escrow (movida desde el Navbar) */}
+            <div
+              data-testid="payment-page-wallet-card"
+              className="bg-white rounded-3xl p-6 sm:p-7 shadow-[0_15px_40px_-15px_rgba(90,15,36,0.12)] border border-[#C9B8A6]/60 space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-[#C9B8A6]/50 pb-3.5">
+                <span className="text-sm font-extrabold text-[#5A0F24] flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-[#8C2C45]" />
+                  Billetera & Tarjeta Escrow
+                </span>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  Verificada
+                </span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-[#5A0F24] to-[#8C2C45] text-white space-y-1">
+                <div className="flex items-center justify-between text-[11px] text-[#F3EFE6]/85">
+                  <span>{wallet?.cardBrand || 'Tarjeta'}</span>
+                  <span className="font-mono">
+                    •••• •••• •••• {wallet?.cardLast4 || '••••'}
+                  </span>
+                </div>
+                <p className="text-2xl font-extrabold tracking-tight pt-1">
+                  {formatMoney(wallet?.balance)}
+                </p>
+                <p className="text-[11px] text-[#F3EFE6]/85">
+                  En custodia (Escrow): {formatMoney(wallet?.escrowLocked)}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleAddFunds(1000)}
+                data-testid="btn-add-funds"
+                className="w-full py-2.5 px-4 rounded-xl bg-[#F3EFE6] hover:bg-[#e8dfd1] text-[#5A0F24] border border-[#C9B8A6]/70 text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-4 h-4 text-[#8C2C45]" />
+                <span>Agregar saldo ({formatMoney(1000)})</span>
+              </button>
+            </div>
+
+            {/* Tarjetas Guardadas */}
             <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-[0_15px_40px_-15px_rgba(90,15,36,0.12)] border border-[#C9B8A6]/60 space-y-5">
               <div className="flex items-center justify-between border-b border-[#C9B8A6]/50 pb-4">
                 <div>

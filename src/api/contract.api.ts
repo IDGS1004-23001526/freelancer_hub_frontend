@@ -247,6 +247,94 @@ function generatePseudoHash(seed: string): string {
   return result;
 }
 
+function mapBackendContractToFrontend(contract: any): ActiveContractDetail {
+  return {
+    id: contract.id,
+    projectId: contract.projectId || 'proj_101',
+    projectTitle:
+      contract.projectTitle ||
+      contract.project?.title ||
+      `Contrato #${contract.id.slice(0, 8)}`,
+    projectCategory:
+      contract.projectCategory ||
+      contract.project?.category ||
+      'Desarrollo Web',
+    proposalId: contract.proposalId || '',
+    freelancerId: contract.freelancerId,
+    freelancerName:
+      contract.freelancerName ||
+      (contract.freelancer?.profile?.firstName
+        ? `${contract.freelancer.profile.firstName} ${contract.freelancer.profile.lastName}`
+        : 'Mateo Villalobos'),
+    freelancerRole:
+      contract.freelancerRole ||
+      'Arquitecto Full-Stack & Especialista Fintech',
+    avatarInitials: contract.avatarInitials || 'MV',
+    clientName:
+      contract.clientName ||
+      (contract.client?.profile?.firstName
+        ? `${contract.client.profile.firstName} ${contract.client.profile.lastName}`
+        : 'Sofía Ramírez • Estudio Nexus'),
+    totalAmount: Number(contract.totalAmount || 0),
+    currency: contract.currency || 'USD',
+    status: contract.status === 'COMPLETED' ? 'COMPLETED' : 'ACTIVE',
+    createdAt: contract.createdAt || new Date().toISOString(),
+    milestones: (contract.milestones || []).map((m: any) => {
+      const kanbanStatus: KanbanMilestoneStatus =
+        m.status === 'APPROVED'
+          ? 'APPROVED'
+          : m.status === 'SUBMITTED' || m.status === 'IN_REVIEW'
+            ? 'IN_REVIEW'
+            : 'TODO';
+
+      const fileName = m.deliverableUrl
+        ? m.deliverableUrl.split('/').pop()
+        : `evidencia-hito${m.order || 1}.pdf`;
+
+      const delivery =
+        m.deliverableUrl || m.deliverableHash || kanbanStatus !== 'TODO'
+          ? {
+              id: `del_${m.id}`,
+              milestoneId: m.id,
+              notes:
+                m.notes ||
+                m.description ||
+                'Avance técnico del hito listo para inspección y validación.',
+              repoUrl:
+                m.repoUrl ||
+                m.deliverableUrl ||
+                'https://github.com/mateovillalobos/agromarket-b2b/pull/14',
+              demoUrl:
+                m.demoUrl ||
+                (m.deliverableUrl && m.deliverableUrl.startsWith('http')
+                  ? m.deliverableUrl
+                  : undefined),
+              fileName: fileName || `evidencia-hito${m.order || 1}.pdf`,
+              fileSize: m.fileSize || '6.8 MB',
+              sha256Hash:
+                m.deliverableHash ||
+                'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+              submittedAt: m.submittedAt || new Date().toISOString(),
+            }
+          : undefined;
+
+      return {
+        id: m.id,
+        contractId: contract.id,
+        order: m.order || 1,
+        title: m.title || `Hito #${m.order}`,
+        description: m.description || '',
+        amount: Number(m.amount || 0),
+        deliveryDays: m.deliveryDays || 7,
+        dueDate: m.dueDate || '2026-12-01',
+        status: kanbanStatus,
+        delivery,
+        approvedAt: m.approvedAt,
+      };
+    }),
+  };
+}
+
 export const contractApi = {
   getContracts: async (): Promise<ActiveContractDetail[]> => {
     try {
@@ -255,7 +343,7 @@ export const contractApi = {
           '/v1/contracts'
         );
       if (Array.isArray(response.data?.data) && response.data.data.length > 0) {
-        return response.data.data;
+        return response.data.data.map(mapBackendContractToFrontend);
       }
       throw new Error('Local fallback');
     } catch {
@@ -280,6 +368,13 @@ export const contractApi = {
           notes:
             deliveryNotes ||
             'Avance enviado para revisión y validación del cliente.',
+        });
+      } else if (newStatus === 'TODO') {
+        await apiClient.post(`/v1/milestones/${milestoneId}/corrections`, {
+          contractId,
+          feedback:
+            deliveryNotes ||
+            'Se han solicitado correcciones técnicas sobre este entregable.',
         });
       }
     } catch {

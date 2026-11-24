@@ -21,17 +21,17 @@ export default function Toast({
     const step = (intervalTime / duration) * 100;
 
     const timer = setInterval(() => {
-      setProgress((prev) => {
-        if (prev <= step) {
-          clearInterval(timer);
-          if (onClose) onClose();
-          return 0;
-        }
-        return prev - step;
-      });
+      setProgress((prev) => Math.max(0, prev - step));
     }, intervalTime);
 
-    return () => clearInterval(timer);
+    const closeTimer = setTimeout(() => {
+      if (onClose) onClose();
+    }, duration);
+
+    return () => {
+      clearInterval(timer);
+      clearTimeout(closeTimer);
+    };
   }, [duration, onClose]);
 
   const variants = {

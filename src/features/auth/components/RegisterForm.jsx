@@ -412,19 +412,6 @@ export default function RegisterForm() {
         </div>
       </div>
 
-      {/* Social Auth Buttons (Apple & Google) */}
-      <div className="grid grid-cols-2 gap-3">
-        <Button
-          variant="secondary"
-          onClick={() => handleOAuthRegister('apple')}
-          className="border-[#C9B8A6]/60 hover:bg-[#F3EFE6]/50"
-        >
-          <svg className="w-4 h-4 fill-current text-[#5A0F24]" viewBox="0 0 170 170">
-            <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.69-3.04-7.67-7.85-11.96-14.42-7.2-11.08-12.7-23.77-16.5-38.07-3.8-14.3-5.7-27.4-5.7-39.3 0-14.76 3.69-26.86 11.06-36.3 7.37-9.44 16.73-14.28 28.08-14.52 4.35 0 9.38 1.15 15.08 3.46 5.7 2.3 9.4 3.51 11.1 3.62 2.35-.22 6.33-1.5 11.93-3.84 5.6-2.34 10.45-3.41 14.55-3.21 11.7.67 21.32 4.78 28.87 12.33-10.43 6.31-15.54 15.08-15.34 26.3.2 8.7 3.53 16.14 10 22.31 6.47 6.17 14.19 9.87 23.16 11.1-2.47 7.6-5.63 15.38-9.47 23.33zM119.22 31.84c0-7.39 2.66-14.35 7.98-20.89 5.32-6.53 11.89-10.51 19.7-11.95.89 7.39-1.46 14.34-7.05 20.86-5.59 6.52-12.46 10.51-20.63 11.98z"/>
-          </svg>
-          <span className="text-[#5A0F24]">Apple</span>
-        </Button>
-
         {/* Google Button */}
         <div className="flex justify-center items-center w-full [&>div]:w-full [&_iframe]:w-full">
           <GoogleLogin
@@ -436,8 +423,7 @@ export default function RegisterForm() {
             locale="es"
           />
         </div>
-      </div>
-
+   
       {/* Navigation link back to Login */}
       <div className="mt-6 text-center text-xs text-[#5A0F24]/80">
         ¿Ya tienes una cuenta?{' '}

@@ -61,10 +61,35 @@ export default function DashboardPage() {
   const [showAllNews, setShowAllNews] = useState(false);
 
   useEffect(() => {
-    fetch('https://dev.to/api/articles?per_page=8&top=7')
+    fetch('https://dev.to/api/articles?per_page=15&top=7')
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
-        if (Array.isArray(data)) setDevNews(data);
+        if (Array.isArray(data) && data.length > 0) {
+          setDevNews(data);
+          const feedArticles = data.map((article) => ({
+            id: `devto-${article.id}`,
+            author: {
+              name: article.user?.name || 'Dev.to',
+              avatarText: (article.user?.name || 'DV').slice(0, 2).toUpperCase(),
+              headline:
+                (Array.isArray(article.tag_list) && article.tag_list.length > 0
+                  ? article.tag_list.slice(0, 3).map((t) => `#${t}`).join(' ')
+                  : 'Desarrollo de Software'),
+              verified: true,
+            },
+            time: article.readable_publish_date || 'Reciente',
+            text: `${article.title}${article.description ? ` — ${article.description}` : ''}`,
+            imageUrl: article.cover_image || article.social_image || null,
+            likes: article.public_reactions_count || 0,
+            comments: article.comments_count || 0,
+            isFollowing: false,
+            isLiked: false,
+          }));
+          setPosts((prev) => {
+            const existingIds = new Set(prev.map((p) => p.id));
+            return [...feedArticles.filter((a) => !existingIds.has(a.id)), ...prev];
+          });
+        }
       })
       .catch(() => {});
   }, []);

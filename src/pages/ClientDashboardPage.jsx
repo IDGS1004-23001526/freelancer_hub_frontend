@@ -10,6 +10,7 @@ import {
   TrendingUp,
   Filter,
   CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout.jsx';
 import ProjectCard from '../features/projects/components/ProjectCard.jsx';
@@ -19,16 +20,24 @@ import { useAuthStore } from '../stores/auth.store.js';
 
 export default function ClientDashboardPage() {
   const location = useLocation();
-  const { projects, wallet, fetchProjects } = useProjectStore();
+  const { projects, wallet, loading, fetchProjects } = useProjectStore();
   const { user } = useAuthStore();
-
-  useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('TODAS');
   const [selectedStatus, setSelectedStatus] = useState('TODOS');
+
+  // Debounced search y filtro que consulta directamente la API / Base de Datos
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchProjects({
+        search: searchQuery,
+        category: selectedCategory,
+      });
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, selectedCategory, fetchProjects]);
 
   const displayName = user?.fullName || 'Sofía Ramírez';
   const highlightedId = location.state?.newProjectId || null;
@@ -239,8 +248,13 @@ export default function ClientDashboardPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar por título, categoría o habilidad (ej. React, TypeScript, Figma)..."
-                className="w-full pl-10 pr-4 py-2.5 bg-[#f6f2ee]/60 border border-[#e8deda] focus:bg-white focus:ring-2 focus:ring-[#72293e]/20 focus:border-[#72293e] rounded-xl text-xs md:text-sm text-[#2b1b1e] placeholder-[#b0a0a4] focus:outline-none transition-all"
+                className="w-full pl-10 pr-10 py-2.5 bg-[#f6f2ee]/60 border border-[#e8deda] focus:bg-white focus:ring-2 focus:ring-[#72293e]/20 focus:border-[#72293e] rounded-xl text-xs md:text-sm text-[#2b1b1e] placeholder-[#b0a0a4] focus:outline-none transition-all"
               />
+              {loading && (
+                <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[#8C2C45]">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                </div>
+              )}
             </div>
 
             <div className="relative">

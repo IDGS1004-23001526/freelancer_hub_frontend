@@ -5,6 +5,8 @@ import type {
   ProjectConvocatoria,
   CreateProjectPayload,
   ClientWalletInfo,
+  ProjectFilterParams,
+  ProjectStatus,
 } from '../interfaces/project.interface.js';
 
 const STORAGE_KEY = 'fh_projects_catalog';
@@ -20,19 +22,62 @@ const DEFAULT_WALLET: ClientWalletInfo = {
   cardLast4: '',
 };
 
+function normalizeProject(proj: any): ProjectConvocatoria {
+  const statusMap: Record<string, ProjectStatus> = {
+    ACTIVE: 'ABIERTO',
+    ABIERTO: 'ABIERTO',
+    IN_PROGRESS: 'EN_PROGRESO',
+    EN_PROGRESO: 'EN_PROGRESO',
+    COMPLETED: 'COMPLETADO',
+    COMPLETADO: 'COMPLETADO',
+    CANCELLED: 'CANCELADO',
+    CANCELADO: 'CANCELADO',
+  };
+
+  const id = proj.id || `proj_${Date.now()}`;
+  const title = proj.title || '';
+  const category = proj.category || 'Desarrollo Web';
+  const budget = Number(proj.budget) || 0;
+  const currency = proj.currency || 'USD';
+  const skills = Array.isArray(proj.skills) ? proj.skills : [];
+  const status = statusMap[proj.status] || 'ABIERTO';
+
+  return {
+    ...proj,
+    id,
+    title,
+    category,
+    budget,
+    currency,
+    skills,
+    estimatedDate: proj.estimatedDate
+      ? String(proj.estimatedDate).slice(0, 10)
+      : new Date().toISOString().slice(0, 10),
+    description:
+      proj.description ||
+      `Convocatoria para ${title} en ${category}. Habilidades: ${skills.join(', ')}.`,
+    status,
+    clientName: proj.clientName || 'Sofía Ramírez • Cliente Verificado',
+    clientAvatar: proj.clientAvatar || undefined,
+    proposalsCount:
+      typeof proj.proposalsCount === 'number'
+        ? proj.proposalsCount
+        : getProjectProposalsCount(id, {
+            title,
+            category,
+            budget,
+            currency,
+            skills,
+          }),
+    createdAt: proj.createdAt || new Date().toISOString(),
+    updatedAt: proj.updatedAt || proj.createdAt || new Date().toISOString(),
+  };
+}
+
 function syncProjectsProposalsCount(
   list: ProjectConvocatoria[]
 ): ProjectConvocatoria[] {
-  return list.map((proj) => ({
-    ...proj,
-    proposalsCount: getProjectProposalsCount(proj.id, {
-      title: proj.title,
-      category: proj.category,
-      budget: proj.budget,
-      currency: proj.currency,
-      skills: proj.skills,
-    }),
-  }));
+  return list.map((proj) => normalizeProject(proj));
 }
 
 function loadInitialProjects(): ProjectConvocatoria[] {
@@ -78,7 +123,7 @@ interface ProjectState {
   wallet: ClientWalletInfo;
   loading: boolean;
   error: string | null;
-  fetchProjects: () => Promise<void>;
+  fetchProjects: (params?: ProjectFilterParams) => Promise<void>;
   createProject: (
     payload: CreateProjectPayload,
     clientName?: string
@@ -94,19 +139,36 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   loading: false,
   error: null,
 
-  fetchProjects: async () => {
+  fetchProjects: async (params?: ProjectFilterParams) => {
     set({ loading: true, error: null });
     try {
-      const response = await projectApi.getProjects();
+      const response = await projectApi.getProjects(params);
       if (response?.data && Array.isArray(response.data)) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(response.data));
-        set({ projects: response.data, loading: false });
+        const normalized = response.data.map(normalizeProject);
+        if (!params?.search && (!params?.category || params.category === 'TODAS')) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+        }
+        set({ projects: normalized, loading: false });
         return;
       }
     } catch {
       // Fallback local
     }
     const localProjects = loadInitialProjects();
+    if (params?.search || (params?.category && params.category !== 'TODAS')) {
+      const filtered = localProjects.filter((p) => {
+        const matchSearch =
+          !params.search ||
+          p.title.toLowerCase().includes(params.search.toLowerCase()) ||
+          p.description.toLowerCase().includes(params.search.toLowerCase()) ||
+          p.skills.some((s) => s.toLowerCase().includes(params.search!.toLowerCase()));
+        const matchCategory =
+          !params.category || params.category === 'TODAS' || p.category === params.category;
+        return matchSearch && matchCategory;
+      });
+      set({ projects: filtered, loading: false });
+      return;
+    }
     set({ projects: localProjects, loading: false });
   },
 

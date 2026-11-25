@@ -44,18 +44,39 @@ export interface ActiveContractDetail {
   projectId: string;
   projectTitle: string;
   projectCategory: string;
+  projectDescription?: string;
   proposalId: string;
   freelancerId: string;
   freelancerName: string;
   freelancerRole: string;
+  freelancerAvatar?: string;
   avatarInitials: string;
   clientName: string;
   totalAmount: number;
   currency: string;
-  status: 'ACTIVE' | 'COMPLETED';
+  status: 'DRAFT' | 'FUNDED' | 'ACTIVE' | 'IN_PROGRESS' | 'COMPLETED';
+  fundedAt?: string;
   createdAt: string;
   milestones: ContractMilestone[];
   review?: BlindReviewRecord | null;
+}
+
+export interface EscrowReceipt {
+  id: string;
+  contractId: string;
+  transactionId: string;
+  projectTitle: string;
+  freelancerName: string;
+  freelancerRole?: string;
+  clientName: string;
+  subtotal: number;
+  serviceFee: number;
+  totalDeposited: number;
+  currency: string;
+  paymentMethod: string;
+  cardLast4?: string;
+  sha256Seal: string;
+  fundedAt: string;
 }
 
 export interface CreateReviewPayload {

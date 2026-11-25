@@ -5,6 +5,7 @@ import type {
   BlindReviewRecord,
   ContractMilestone,
   CreateReviewPayload,
+  EscrowReceipt,
   KanbanMilestoneStatus,
 } from '../interfaces/contract.interface.js';
 
@@ -155,7 +156,7 @@ const INITIAL_CONTRACTS: ActiveContractDetail[] = [
             'Quedaron listos los 45 componentes con sus variantes claras, estados de error y guía de espaciados.',
           repoUrl: 'https://figma.com/file/fintech-design-system-tokens',
           demoUrl: 'https://figma.com/proto/fintech-ui-kit',
-          fileName: 'guia-sistema-diseno-v2.zip',
+          fileName: 'guia-sistema-diseno-v2.pdf',
           fileSize: '9.4 MB',
           sha256Hash:
             '4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a',
@@ -180,12 +181,64 @@ const INITIAL_CONTRACTS: ActiveContractDetail[] = [
             '¡Hola Sofía! Ya está listo el último entregable con el prototipo navegable completo. Al aprobar este último hito habremos concluido todo el proyecto.',
           repoUrl: 'https://figma.com/file/fintech-final-handoff',
           demoUrl: 'https://figma.com/proto/fintech-app-interactive',
-          fileName: 'entrega-final-prototipo-fintech.zip',
+          fileName: 'entrega-final-prototipo-fintech.pdf',
           fileSize: '12.3 MB',
           sha256Hash:
             '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
           submittedAt: '2026-11-10T18:00:00.000Z',
         },
+      },
+    ],
+    review: null,
+  },
+  {
+    id: 'ctr_draft_101',
+    projectId: 'proj_103',
+    projectTitle: 'Arquitectura Cloud Microservicios con Kubernetes y Vault',
+    projectCategory: 'DevOps & Cloud',
+    proposalId: 'prop_205',
+    freelancerId: 'free_01',
+    freelancerName: 'Mateo Villalobos',
+    freelancerRole: 'Arquitecto Cloud & Especialista en Seguridad Escrow',
+    avatarInitials: 'MV',
+    clientName: 'Sofía Ramírez • Estudio Nexus',
+    totalAmount: 3500,
+    currency: 'USD',
+    status: 'DRAFT',
+    createdAt: '2026-11-20T10:00:00.000Z',
+    milestones: [
+      {
+        id: 'km_301',
+        contractId: 'ctr_draft_101',
+        order: 1,
+        title: 'Clúster EKS y Pipeline CI/CD con Terraform',
+        description: 'Infraestructura como código para despliegues automatizados y pruebas de estrés.',
+        amount: 1500,
+        deliveryDays: 10,
+        dueDate: '2026-12-05',
+        status: 'TODO',
+      },
+      {
+        id: 'km_302',
+        contractId: 'ctr_draft_101',
+        order: 2,
+        title: 'Gestión de Secretos con HashiCorp Vault y Cifrado TLS',
+        description: 'Políticas de rotación de credenciales, tokens temporales y certificados SSL/TLS.',
+        amount: 1200,
+        deliveryDays: 8,
+        dueDate: '2026-12-15',
+        status: 'TODO',
+      },
+      {
+        id: 'km_303',
+        contractId: 'ctr_draft_101',
+        order: 3,
+        title: 'Monitoreo Prometheus/Grafana y Documentación Runbook',
+        description: 'Tableros de observabilidad, alertas en tiempo real y manual de contingencia operativa.',
+        amount: 800,
+        deliveryDays: 6,
+        dueDate: '2026-12-22',
+        status: 'TODO',
       },
     ],
     review: null,
@@ -215,7 +268,12 @@ export function loadStoredKanbanContracts(): ActiveContractDetail[] {
     if (raw) {
       const parsed: ActiveContractDetail[] = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((c) => ({
+        // Garantizar que contratos nuevos (como ctr_draft_101) aparezcan aunque ya hubiera caché previa
+        const missing = INITIAL_CONTRACTS.filter(
+          (init) => !parsed.some((p) => p.id === init.id)
+        );
+        const combined = [...parsed, ...missing];
+        return combined.map((c) => ({
           ...c,
           review: reviewsMap[c.id] || c.review || null,
         }));
@@ -248,6 +306,26 @@ function generatePseudoHash(seed: string): string {
 }
 
 function mapBackendContractToFrontend(contract: any): ActiveContractDetail {
+  const freelancerProfile = contract.freelancer?.profile;
+  const clientProfile = contract.client?.profile;
+
+  const freelancerName =
+    contract.freelancerName ||
+    (freelancerProfile
+      ? `${freelancerProfile.firstName} ${freelancerProfile.lastName}`.trim()
+      : 'Mateo Villalobos');
+
+  const clientName =
+    contract.clientName ||
+    (clientProfile
+      ? `${clientProfile.firstName} ${clientProfile.lastName}`.trim()
+      : 'Sofía Ramírez • Estudio Nexus');
+
+  const freelancerRole =
+    contract.freelancerRole ||
+    freelancerProfile?.professionalTitle ||
+    'Arquitecto Full-Stack & Especialista Fintech';
+
   return {
     id: contract.id,
     projectId: contract.projectId || 'proj_101',
@@ -259,25 +337,37 @@ function mapBackendContractToFrontend(contract: any): ActiveContractDetail {
       contract.projectCategory ||
       contract.project?.category ||
       'Desarrollo Web',
+    projectDescription:
+      contract.projectDescription ||
+      contract.project?.description,
     proposalId: contract.proposalId || '',
     freelancerId: contract.freelancerId,
-    freelancerName:
-      contract.freelancerName ||
-      (contract.freelancer?.profile?.firstName
-        ? `${contract.freelancer.profile.firstName} ${contract.freelancer.profile.lastName}`
-        : 'Mateo Villalobos'),
-    freelancerRole:
-      contract.freelancerRole ||
-      'Arquitecto Full-Stack & Especialista Fintech',
-    avatarInitials: contract.avatarInitials || 'MV',
-    clientName:
-      contract.clientName ||
-      (contract.client?.profile?.firstName
-        ? `${contract.client.profile.firstName} ${contract.client.profile.lastName}`
-        : 'Sofía Ramírez • Estudio Nexus'),
+    freelancerName,
+    freelancerRole,
+    freelancerAvatar:
+      contract.freelancerAvatar ||
+      freelancerProfile?.avatarUrl,
+    avatarInitials:
+      contract.avatarInitials ||
+      freelancerName
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((p: string) => p[0].toUpperCase())
+        .join('') ||
+      'MV',
+    clientName,
     totalAmount: Number(contract.totalAmount || 0),
     currency: contract.currency || 'USD',
-    status: contract.status === 'COMPLETED' ? 'COMPLETED' : 'ACTIVE',
+    status:
+      contract.status === 'COMPLETED'
+        ? 'COMPLETED'
+        : contract.status === 'DRAFT'
+          ? 'DRAFT'
+          : contract.status === 'FUNDED'
+            ? 'FUNDED'
+            : 'ACTIVE',
+    fundedAt: contract.fundedAt,
     createdAt: contract.createdAt || new Date().toISOString(),
     milestones: (contract.milestones || []).map((m: any) => {
       const kanbanStatus: KanbanMilestoneStatus =
@@ -288,7 +378,7 @@ function mapBackendContractToFrontend(contract: any): ActiveContractDetail {
             : 'TODO';
 
       const fileName = m.deliverableUrl
-        ? m.deliverableUrl.split('/').pop()
+        ? m.deliverableUrl.split('/').pop()?.replace(/\.[^/.]+$/, '') + '.pdf'
         : `evidencia-hito${m.order || 1}.pdf`;
 
       const delivery =
@@ -349,6 +439,93 @@ export const contractApi = {
     } catch {
       return loadStoredKanbanContracts();
     }
+  },
+
+  getContractById: async (contractId: string): Promise<ActiveContractDetail> => {
+    try {
+      const response = await apiClient.get<ApiResponse<any>>(
+        `/v1/contracts/${contractId}`
+      );
+      if (response.data?.data) {
+        return mapBackendContractToFrontend(response.data.data);
+      }
+      throw new Error('Local fallback');
+    } catch {
+      const list = loadStoredKanbanContracts();
+      const found = list.find((c) => c.id === contractId);
+      if (found) return found;
+      return list[0];
+    }
+  },
+
+  fundContract: async (
+    contractId: string,
+    payload: {
+      paymentMethod: string;
+      cardLast4?: string;
+      autoStart?: boolean;
+    }
+  ): Promise<{ contract: ActiveContractDetail; receipt: EscrowReceipt }> => {
+    let backendContract: ActiveContractDetail | null = null;
+    try {
+      const response = await apiClient.post<ApiResponse<any>>(
+        `/v1/contracts/${contractId}/fund`,
+        {
+          autoStart: payload.autoStart ?? true,
+          paymentMethod: payload.paymentMethod,
+          cardLast4: payload.cardLast4,
+        }
+      );
+      if (response.data?.data) {
+        backendContract = mapBackendContractToFrontend(response.data.data);
+      }
+    } catch {
+      // Fallback local update
+    }
+
+    const contracts = loadStoredKanbanContracts().map((c) => {
+      if (c.id === contractId) {
+        return {
+          ...c,
+          status: 'ACTIVE' as const,
+          fundedAt: new Date().toISOString(),
+        };
+      }
+      return c;
+    });
+    saveStoredKanbanContracts(contracts);
+
+    const activeContract =
+      backendContract ||
+      contracts.find((c) => c.id === contractId) ||
+      contracts[0];
+
+    const subtotal = activeContract.totalAmount;
+    const serviceFee = Math.round(subtotal * 0.1 * 100) / 100;
+    const totalDeposited = Math.round((subtotal + serviceFee) * 100) / 100;
+
+    const receipt: EscrowReceipt = {
+      id: `rec_${Date.now().toString().slice(-8)}`,
+      contractId: activeContract.id,
+      transactionId: `tx_escrow_${Date.now().toString().slice(-6)}`,
+      projectTitle: activeContract.projectTitle,
+      freelancerName: activeContract.freelancerName,
+      freelancerRole: activeContract.freelancerRole,
+      clientName: activeContract.clientName,
+      subtotal,
+      serviceFee,
+      totalDeposited,
+      currency: activeContract.currency || 'USD',
+      paymentMethod:
+        payload.paymentMethod === 'card'
+          ? 'Tarjeta Bancaria'
+          : 'Billetera Digital',
+      cardLast4: payload.cardLast4,
+      sha256Seal: generatePseudoHash(`${activeContract.id}_escrow_${Date.now()}`),
+      fundedAt: new Date().toISOString(),
+    };
+
+    return { contract: activeContract, receipt };
   },
 
   updateMilestoneStatus: async (

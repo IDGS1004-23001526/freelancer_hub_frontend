@@ -280,13 +280,27 @@ export default function ContractKanbanPage() {
                     className={`px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider ${
                       allCompleted
                         ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                        : 'bg-amber-100 text-amber-900 border border-amber-300'
+                        : activeContract.status === 'DRAFT'
+                          ? 'bg-amber-100 text-amber-950 border border-amber-300'
+                          : 'bg-emerald-50 text-emerald-900 border border-emerald-300'
                     }`}
                   >
                     {allCompleted
                       ? 'Todas las entregas aprobadas'
-                      : 'En ejecución'}
+                      : activeContract.status === 'DRAFT'
+                        ? 'Pendiente de Fondeo Escrow'
+                        : 'En ejecución'}
                   </span>
+
+                  {activeContract.status === 'DRAFT' && (
+                    <Link
+                      to={`/contracts/${activeContract.id}/fund`}
+                      className="px-3 py-1 rounded-full bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-[11px] font-extrabold transition-colors shadow-2xs inline-flex items-center gap-1"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Depositar en Custodia Escrow →</span>
+                    </Link>
+                  )}
                 </div>
 
                 <h1 className="text-xl md:text-2xl font-extrabold text-[#5A0F24] tracking-tight">

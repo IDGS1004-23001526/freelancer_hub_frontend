@@ -12,6 +12,7 @@ import ProjectDetailPage from '../pages/ProjectDetailPage.jsx';
 import PaymentMethodsPage from '../pages/PaymentMethodsPage.jsx';
 import CandidateComparisonPage from '../pages/CandidateComparisonPage.jsx';
 import ContractKanbanPage from '../pages/ContractKanbanPage.jsx';
+import ContractFundingPage from '../pages/ContractFundingPage.jsx';
 import MessagesPage from '../pages/MessagesPage.jsx';
 import { useAuthStore } from '../stores/auth.store.js';
 
@@ -39,6 +40,9 @@ export default function AppRoutes() {
       <Route path="/candidates" element={<CandidateComparisonPage />} />
       <Route path="/contracts" element={<ContractKanbanPage />} />
       <Route path="/contracts/:id" element={<ContractKanbanPage />} />
+      <Route path="/contracts/:id/fund" element={<ContractFundingPage />} />
+      <Route path="/contracts/fund/:id" element={<ContractFundingPage />} />
+      <Route path="/contracts/fund" element={<ContractFundingPage />} />
       <Route path="/kanban" element={<ContractKanbanPage />} />
       <Route path="/payment-methods" element={<PaymentMethodsPage />} />
       <Route path="/payments" element={<PaymentMethodsPage />} />

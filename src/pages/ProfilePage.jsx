@@ -53,50 +53,30 @@ export default function ProfilePage() {
   const fileInputRef = useRef(null);
 
   const currentUser = user || {
-    id: 'usr_me',
-    fullName: 'Christopher Isaac Rivera Valderrama',
-    email: 'christoferriveravalderrama@gmail.com',
+    id: '',
+    fullName: '',
+    email: '',
     role: 'FREELANCER',
   };
 
+  const nameParts = (user?.fullName || '').trim().split(/\s+/);
+  const initialFirstName = nameParts[0] || '';
+  const initialLastName = nameParts.slice(1).join(' ') || '';
+
   // State principal del perfil (poblado directamente desde las APIs)
   const [profile, setProfile] = useState({
-    firstName: 'Christopher Isaac',
-    lastName: 'Rivera Valderrama',
-    first_name: 'Christopher Isaac',
-    last_name: 'Rivera Valderrama',
-    professionalTitle: 'Desarrollador de Software Multiplataforma | Desarrollo Web | React | Node.js | UI/UX Design',
-    bio: 'Ingeniero de software con pasión por el desarrollo de aplicaciones web y móviles de alto impacto. Especializado en arquitecturas limpias, escalables y diseño centrado en el usuario utilizando el ecosistema React, Node.js y bases de datos relacionales.',
-    phone: '+52 477 123 4567',
-    location: 'León y alrededores, México',
-    hourlyRate: 35,
+    firstName: initialFirstName,
+    lastName: initialLastName,
+    first_name: initialFirstName,
+    last_name: initialLastName,
+    professionalTitle: '',
+    bio: '',
+    phone: '',
+    location: '',
+    hourlyRate: 0,
     avatarUrl: '/avatar-sample.jpg',
-    skills: [
-      'React',
-      'Node.js',
-      'PostgreSQL',
-      'TypeScript',
-      'UI/UX Design',
-      'Docker',
-      'Tailwind CSS',
-      'Next.js',
-      'Git & GitHub',
-      'Arquitectura Limpia',
-    ],
-    portfolioItems: [
-      {
-        id: 'port-1',
-        title: 'FreelancerHub Platform',
-        description: 'Plataforma para freelancers y clientes con pagos protegidos mediante Escrow, autenticación JWT y diseño responsive moderno.',
-        projectUrl: 'https://freelancerhub.org',
-      },
-      {
-        id: 'port-2',
-        title: 'Cloud Security Dashboard',
-        description: 'Panel de monitoreo en tiempo real de infraestructura en la nube con métricas de rendimiento y alertas proactivas.',
-        projectUrl: 'https://github.com',
-      },
-    ],
+    skills: [],
+    portfolioItems: [],
   });
 
   const [loading, setLoading] = useState(true);

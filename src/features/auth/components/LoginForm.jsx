@@ -5,6 +5,7 @@ import { AtSign, Lock, Eye, EyeOff, ArrowRight, HelpCircle } from 'lucide-react'
 import Input from '../../ui/Input.jsx';
 import Button from '../../ui/Button.jsx';
 import { useAuthStore } from '../../../stores/auth.store.js';
+import { profileApi } from '../../../api/profile.api.js';
 
 export default function LoginForm() {
   const navigate = useNavigate();
@@ -37,9 +38,23 @@ export default function LoginForm() {
 
     const result = await googleLogin(token);
     if (result.success) {
-      setFeedback({ type: 'success', text: `¡Bienvenido de vuelta, ${result.user.fullName}!` });
+      let targetPath = '/dashboard';
+      let navState;
+      try {
+        const status = await profileApi.getOnboardingStatus();
+        if (!status?.data?.isFullyCompleted) {
+          targetPath = '/onboarding';
+          navState = {
+            newUser: result.user,
+            role: result.user?.role || 'FREELANCER',
+          };
+        }
+      } catch {
+        // Si falla la consulta de onboarding, continuamos al dashboard
+      }
+      setFeedback({ type: 'success', text: `¡Bienvenido, ${result.user.fullName}!` });
       setTimeout(() => {
-        navigate('/dashboard');
+        navigate(targetPath, navState ? { state: navState } : undefined);
       }, 800);
     } else {
       setFeedback({ type: 'error', text: result.error });

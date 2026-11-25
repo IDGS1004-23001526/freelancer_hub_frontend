@@ -837,7 +837,9 @@ export default function ProfilePage() {
             <hr className="border-[#C9B8A6]/20" />
             <div className="flex justify-between items-center text-sm">
               <span className="font-bold text-[#5A0F24]">Perfil público y URL</span>
-              <span className="text-xs text-[#8C2C45] font-mono font-semibold">/in/christopher-rivera</span>
+              <span className="text-xs text-[#8C2C45] font-mono font-semibold">
+                /in/{`${profile.firstName || ''} ${profile.lastName || ''}`.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'usuario'}
+              </span>
             </div>
           </div>
 

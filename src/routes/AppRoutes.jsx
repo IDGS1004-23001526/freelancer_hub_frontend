@@ -5,6 +5,7 @@ import RegisterPage from '../pages/RegisterPage.jsx';
 import OnboardingPage from '../pages/OnboardingPage.jsx';
 import KanbanPage from '../pages/KanbanPage.tsx';
 import DashboardPage from '../pages/DashboardPage.jsx';
+import NetworkPage from '../pages/NetworkPage.jsx';
 import ProfilePage from '../pages/ProfilePage.jsx';
 import ClientDashboardPage from '../pages/ClientDashboardPage.jsx';
 import CreateProjectPage from '../pages/CreateProjectPage.jsx';
@@ -26,6 +27,7 @@ export default function AppRoutes() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/onboarding" element={<OnboardingPage />} />
       <Route path="/dashboard" element={isClient ? <ClientDashboardPage /> : <DashboardPage />} />
+      <Route path="/network" element={<NetworkPage />} />
       <Route path="/client-dashboard" element={<ClientDashboardPage />} />
       <Route path="/social" element={<DashboardPage />} />
       <Route path="/profile" element={<ProfilePage />} />

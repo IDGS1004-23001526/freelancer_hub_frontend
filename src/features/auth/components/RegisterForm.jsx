@@ -176,7 +176,7 @@ export default function RegisterForm() {
     const token = credentialResponse.credential;
     if (!token) return;
 
-    const result = await googleLogin(token, role);
+    const result = await googleLogin(token, role, 'register');
     if (result.success) {
       setToast({
         type: 'success',

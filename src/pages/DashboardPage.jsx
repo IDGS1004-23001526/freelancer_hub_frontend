@@ -263,7 +263,7 @@ export default function DashboardPage() {
               <span>Inicio</span>
             </Link>
             <Link
-              to="/onboarding"
+              to="/network"
               className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition"
             >
               <Users className="w-5 h-5 mb-0.5" />

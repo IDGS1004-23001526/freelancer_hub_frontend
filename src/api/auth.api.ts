@@ -33,8 +33,16 @@ export const authApi = {
     return response.data;
   },
 
-  googleAuth: async (idToken: string, role?: string): Promise<ApiResponse<AuthResponse>> => {
-    const response = await apiClient.post<ApiResponse<AuthResponse>>('/v1/auth/google', { idToken, role });
+  googleAuth: async (
+    idToken: string,
+    role?: string,
+    mode: 'login' | 'register' = 'login'
+  ): Promise<ApiResponse<AuthResponse>> => {
+    const response = await apiClient.post<ApiResponse<AuthResponse>>('/v1/auth/google', {
+      idToken,
+      role,
+      mode,
+    });
     return response.data;
   },
 };

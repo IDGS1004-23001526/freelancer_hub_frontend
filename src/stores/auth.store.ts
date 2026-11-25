@@ -11,7 +11,7 @@ interface AuthState {
   error: string | null;
   login: (credentials: LoginCredentials) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
   register: (payload: RegisterPayload) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
-  googleLogin: (idToken: string, role?: string) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
+  googleLogin: (idToken: string, role?: string, mode?: 'login' | 'register') => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -115,10 +115,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  googleLogin: async (idToken: string, role?: string) => {
+  googleLogin: async (idToken: string, role?: string, mode: 'login' | 'register' = 'login') => {
     set({ loading: true, error: null });
     try {
-      const response = await authApi.googleAuth(idToken, role);
+      const response = await authApi.googleAuth(idToken, role, mode);
       if (!response.data) {
         throw new Error('Respuesta inválida del servidor');
       }

@@ -83,7 +83,7 @@ export default function LoginForm() {
     const token = credentialResponse.credential;
     if (!token) return;
 
-    const result = await googleLogin(token);
+    const result = await googleLogin(token, undefined, 'login');
     if (result.success) {
       let targetPath = '/dashboard';
       let navState;

@@ -712,7 +712,7 @@ export function getProjectProposalsCount(
 export const candidateApi = {
   getProposalsByProject: async (
     projectId: string,
-    projectMeta?: {
+    _projectMeta?: {
       title?: string;
       category?: string;
       budget?: number;
@@ -722,14 +722,14 @@ export const candidateApi = {
   ): Promise<CandidateProposal[]> => {
     try {
       const response = await apiClient.get<ApiResponse<CandidateProposal[]>>(
-        `/v1/projects/${projectId}/proposals`
+        `/v1/proposals/project/${projectId}`
       );
-      if (Array.isArray(response.data?.data) && response.data.data.length > 0) {
+      if (Array.isArray(response.data?.data)) {
         return response.data.data;
       }
-      throw new Error('Local fallback');
+      return [];
     } catch {
-      return ensureProjectProposals(projectId, projectMeta);
+      return [];
     }
   },
 

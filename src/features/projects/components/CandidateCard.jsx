@@ -62,21 +62,30 @@ export default function CandidateCard({
 
           <span className="inline-flex items-center gap-1 text-xs font-extrabold text-[#5A0F24] bg-[#F3EFE6] px-2.5 py-1 rounded-xl border border-[#C9B8A6]/50">
             <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-            <span>{candidate.reputation.toFixed(1)}</span>
+            <span>{(Number(candidate.reputation) || 5.0).toFixed(1)}</span>
           </span>
         </div>
 
         {/* Datos básicos del postulante */}
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#5A0F24] to-[#8C2C45] text-[#F3EFE6] font-extrabold text-sm flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
-            {candidate.avatarInitials}
+            {candidate.avatarInitials ||
+              (candidate.freelancer?.firstName || candidate.freelancerName || 'FR')
+                .slice(0, 2)
+                .toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-base font-extrabold text-[#5A0F24] group-hover:text-[#8C2C45] transition-colors leading-snug truncate">
-              {candidate.freelancerName}
+              {candidate.freelancerName ||
+                [candidate.freelancer?.firstName, candidate.freelancer?.lastName]
+                  .filter(Boolean)
+                  .join(' ') ||
+                'Freelancer'}
             </h3>
             <p className="text-xs font-semibold text-[#8C2C45] truncate">
-              {candidate.freelancerRole}
+              {candidate.freelancerRole ||
+                candidate.freelancer?.professionalTitle ||
+                'Profesional Independiente'}
             </p>
           </div>
         </div>

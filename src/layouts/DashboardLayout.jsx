@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   User,
   Users,
+  MessageSquare,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/auth.store.js';
 
@@ -68,6 +69,12 @@ export default function DashboardLayout({ children }) {
       fullLabel: 'Métodos de Pago y Tarjetas',
       path: '/payment-methods',
       icon: CreditCard,
+    },
+    {
+      label: 'Mensajes',
+      fullLabel: 'Mensajes y Chat',
+      path: '/messages',
+      icon: MessageSquare,
     },
   ];
 

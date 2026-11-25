@@ -54,7 +54,7 @@ export function calculateCandidateMcda(
       : 1;
   const extraSkillsBonus = Math.min(
     8,
-    Math.max(0, proposal.skills.length - matchedSkills.length) * 2
+    Math.max(0, (proposal.skills?.length || 0) - matchedSkills.length) * 2
   );
   const skillsScore = Math.min(100, Math.round(skillsRatio * 94 + extraSkillsBonus));
 
@@ -92,8 +92,10 @@ export function calculateCandidateMcda(
   }
 
   // 4. Reputación y experiencia comprobada (0 - 100)
-  const ratingScore = Math.min(5, Math.max(1, proposal.reputation)) * 18; // max 90
-  const experienceBonus = Math.min(10, Math.round(proposal.completedProjects / 4));
+  const safeReputation = Number(proposal.reputation) || 5.0;
+  const safeCompleted = Number(proposal.completedProjects) || 0;
+  const ratingScore = Math.min(5, Math.max(1, safeReputation)) * 18; // max 90
+  const experienceBonus = Math.min(10, Math.round(safeCompleted / 4));
   const reputationScore = Math.min(100, Math.round(ratingScore + experienceBonus));
 
   const weightedTotal =

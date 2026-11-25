@@ -40,12 +40,7 @@ import {
 import { useAuthStore } from '../stores/auth.store.js';
 import { profileApi } from '../api/profile.api.js';
 
-const API_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:4000/api').replace(/\/api\/?$/, '');
-const resolveAvatarUrl = (url) => {
-  if (!url) return '/avatar-sample.jpg';
-  if (url.startsWith('/uploads/')) return `${API_ORIGIN}${url}`;
-  return url;
-};
+import { resolveAvatarUrl } from '../utils/avatar.js';
 
 export default function ProfilePage() {
   const navigate = useNavigate();

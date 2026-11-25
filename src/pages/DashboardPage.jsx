@@ -35,12 +35,7 @@ import { useChatStore } from '../stores/chat.store.js';
 import { profileApi } from '../api/profile.api.js';
 import ProjectChatDrawer from '../features/chat/components/ProjectChatDrawer.jsx';
 
-const API_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:4000/api').replace(/\/api\/?$/, '');
-const resolveAvatarUrl = (url) => {
-  if (!url) return '/avatar-sample.jpg';
-  if (url.startsWith('/uploads/')) return `${API_ORIGIN}${url}`;
-  return url;
-};
+import { resolveAvatarUrl } from '../utils/avatar.js';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -50,16 +45,16 @@ export default function DashboardPage() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   const currentUser = user || {
-    id: 'usr_me',
-    fullName: 'Christopher Isaac Rivera Valderrama',
-    email: 'christoferriveravalderrama@gmail.com',
+    id: '',
+    fullName: '',
+    email: '',
     role: 'FREELANCER',
   };
 
   // State del perfil para la tarjeta izquierda
   const [profileData, setProfileData] = useState({
-    professionalTitle: 'Desarrollador de Software Multiplataforma | Desarrollo Web | React | Node.js',
-    location: 'León y alrededores, México',
+    professionalTitle: '',
+    location: '',
     avatarUrl: '/avatar-sample.jpg',
   });
 

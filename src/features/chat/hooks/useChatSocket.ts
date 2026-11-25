@@ -5,7 +5,7 @@ import type {
   TypingSocketPayload,
 } from '../../../interfaces/chat.interface';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') ?? 'http://localhost:4000';
+const SOCKET_URL = (import.meta.env.VITE_API_URL || 'http://localhost:4000/api').replace(/\/api\/?$/, '');
 
 const RECONNECTION_ATTEMPTS = 5;
 const RECONNECTION_DELAY_MS = 2000;

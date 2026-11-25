@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout.jsx';
 import ProjectForm from '../features/projects/components/ProjectForm.jsx';
@@ -45,11 +45,13 @@ export default function CreateProjectPage() {
         {/* Navegación superior */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
-            to="/projects"
+            to={useLocation().state?.from === '/onboarding' ? '/onboarding' : '/projects'}
             className="inline-flex items-center gap-2 text-xs font-bold text-[#8C2C45] hover:text-[#5A0F24] transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Volver al Feed de Convocatorias</span>
+            <span>
+              {useLocation().state?.from === '/onboarding' ? 'Volver al Onboarding' : 'Volver al Feed de Convocatorias'}
+            </span>
           </Link>
 
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F3EFE6] border border-[#C9B8A6] text-[11px] font-bold text-[#5A0F24]">

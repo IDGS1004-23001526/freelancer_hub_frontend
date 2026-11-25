@@ -246,7 +246,7 @@ export default function LoginForm() {
       </div>
 
       {/* Botón Google */}
-        <div className="flex justify-center items-center w-full [&>div]:w-full [&_iframe]:w-full">
+        <div className="flex justify-center items-center w-full">
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
             onError={handleGoogleError}

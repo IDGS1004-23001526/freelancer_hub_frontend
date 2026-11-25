@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home,
   Briefcase,
@@ -40,7 +40,7 @@ import {
 import { useAuthStore } from '../stores/auth.store.js';
 import { profileApi } from '../api/profile.api.js';
 
-import { resolveAvatarUrl } from '../utils/avatar.js';
+import { DEFAULT_AVATAR, resolveAvatarUrl } from '../utils/avatar.js';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -53,6 +53,7 @@ export default function ProfilePage() {
     email: '',
     role: 'FREELANCER',
   };
+  const isClient = currentUser.role === 'CLIENT';
 
   const nameParts = (user?.fullName || '').trim().split(/\s+/);
   const initialFirstName = nameParts[0] || '';
@@ -69,7 +70,7 @@ export default function ProfilePage() {
     phone: '',
     location: '',
     hourlyRate: 0,
-    avatarUrl: '/avatar-sample.jpg',
+    avatarUrl: DEFAULT_AVATAR,
     skills: [],
     portfolioItems: [],
   });
@@ -463,7 +464,7 @@ export default function ProfilePage() {
                 title="Cuenta y opciones"
               >
                 <img
-                  src={profile.avatarUrl}
+                  src={resolveAvatarUrl(profile.avatarUrl)}
                   alt="Yo"
                   className="w-5 h-5 rounded-full object-cover ring-2 ring-[#8C2C45]"
                   onError={(e) => {
@@ -478,7 +479,7 @@ export default function ProfilePage() {
                 <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-[#C9B8A6]/40 p-3 z-50 animate-in fade-in duration-150">
                   <div className="flex items-center gap-2.5 pb-3 border-b border-[#C9B8A6]/20">
                     <img
-                      src={profile.avatarUrl}
+                      src={resolveAvatarUrl(profile.avatarUrl)}
                       alt="Yo"
                       className="w-10 h-10 rounded-full object-cover ring-1 ring-[#C9B8A6]"
                       onError={(e) => {
@@ -561,7 +562,7 @@ export default function ProfilePage() {
                 <div className="relative -mt-24 sm:-mt-28">
                   <div className="w-36 h-36 sm:w-40 sm:h-40 rounded-full border-4 border-white shadow-md bg-white overflow-hidden relative group ring-1 ring-[#C9B8A6]/30">
                     <img
-                      src={profile.avatarUrl}
+                      src={resolveAvatarUrl(profile.avatarUrl)}
                       alt={profile.firstName}
                       className="w-full h-full object-cover"
                       onError={(e) => {
@@ -634,51 +635,59 @@ export default function ProfilePage() {
                     >
                       Información de contacto
                     </button>
-                    <span>·</span>
-                    {/* BOTÓN / PILL DESTACADO DE TARIFA */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setQuickRate(profile.hourlyRate || 35);
-                        setIsRateModalOpen(true);
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#8C2C45]/10 hover:bg-[#8C2C45]/20 text-[#8C2C45] border border-[#8C2C45]/30 rounded-full font-bold text-xs transition cursor-pointer"
-                      title="Clic para cambiar tu tarifa por hora"
-                    >
-                      <DollarSign className="w-3.5 h-3.5 text-[#8C2C45]" />
-                      <span>Tarifa: ${profile.hourlyRate || 35} USD/h</span>
-                      <Pencil className="w-3 h-3 text-[#5A0F24] ml-0.5" />
-                    </button>
+                    {!isClient && (
+                      <>
+                        <span>·</span>
+                        {/* BOTÓN / PILL DESTACADO DE TARIFA */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuickRate(profile.hourlyRate || 35);
+                            setIsRateModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#8C2C45]/10 hover:bg-[#8C2C45]/20 text-[#8C2C45] border border-[#8C2C45]/30 rounded-full font-bold text-xs transition cursor-pointer"
+                          title="Clic para cambiar tu tarifa por hora"
+                        >
+                          <DollarSign className="w-3.5 h-3.5 text-[#8C2C45]" />
+                          <span>Tarifa: ${profile.hourlyRate || 35} USD/h</span>
+                          <Pencil className="w-3 h-3 text-[#5A0F24] ml-0.5" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
 
               {/* BOTONES DE ACCIÓN (PILLS DE LA PALETA) */}
               <div className="flex items-center gap-2 mt-4 flex-wrap">
-                <button
-                  onClick={() => setIsInterestsModalOpen(true)}
-                  className="px-4 py-1.5 bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-sm font-bold rounded-full shadow-xs transition cursor-pointer"
-                >
-                  Tengo interés en...
-                </button>
-                <button
-                  onClick={() => setIsSkillsModalOpen(true)}
-                  className="px-4 py-1.5 border border-[#8C2C45] text-[#8C2C45] hover:bg-[#F3EFE6] text-sm font-bold rounded-full transition cursor-pointer flex items-center gap-1"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Añadir habilidad</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQuickRate(profile.hourlyRate || 35);
-                    setIsRateModalOpen(true);
-                  }}
-                  className="px-4 py-1.5 border border-[#8C2C45] text-[#8C2C45] hover:bg-[#F3EFE6] text-sm font-bold rounded-full transition cursor-pointer flex items-center gap-1"
-                >
-                  <DollarSign className="w-3.5 h-3.5" />
-                  <span>Mover tarifa (${profile.hourlyRate || 35}/h)</span>
-                </button>
+                {!isClient && (
+                  <>
+                    <button
+                      onClick={() => setIsInterestsModalOpen(true)}
+                      className="px-4 py-1.5 bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-sm font-bold rounded-full shadow-xs transition cursor-pointer"
+                    >
+                      Tengo interés en...
+                    </button>
+                    <button
+                      onClick={() => setIsSkillsModalOpen(true)}
+                      className="px-4 py-1.5 border border-[#8C2C45] text-[#8C2C45] hover:bg-[#F3EFE6] text-sm font-bold rounded-full transition cursor-pointer flex items-center gap-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Añadir habilidad</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuickRate(profile.hourlyRate || 35);
+                        setIsRateModalOpen(true);
+                      }}
+                      className="px-4 py-1.5 border border-[#8C2C45] text-[#8C2C45] hover:bg-[#F3EFE6] text-sm font-bold rounded-full transition cursor-pointer flex items-center gap-1"
+                    >
+                      <DollarSign className="w-3.5 h-3.5" />
+                      <span>Mover tarifa (${profile.hourlyRate || 35}/h)</span>
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={openEditModal}
                   className="px-4 py-1.5 border border-[#C9B8A6] text-[#5A0F24] hover:bg-[#F3EFE6] text-sm font-bold rounded-full transition cursor-pointer"
@@ -694,6 +703,7 @@ export default function ProfilePage() {
               </div>
 
               {/* TARJETA "DISPONIBLE PARA PROYECTOS FREELANCE" */}
+              {!isClient && (
               <div className="mt-5 p-4 bg-[#F3EFE6]/80 border border-[#C9B8A6]/60 rounded-xl relative group">
                 <button
                   onClick={() => {
@@ -705,7 +715,7 @@ export default function ProfilePage() {
                 >
                   <Pencil className="w-4 h-4" />
                 </button>
-                <div className="pr-8">
+              <div className="pr-8">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse"></span>
                     <h4 className="text-xs sm:text-sm font-extrabold text-[#5A0F24]">
@@ -726,10 +736,12 @@ export default function ProfilePage() {
                   </button>
                 </div>
               </div>
+              )}
             </div>
           </div>
 
           {/* TARJETA 2: HABILIDADES (TABLA 'skills' & 'profile_skills' EN POSTGRESQL) */}
+          {!isClient && (
           <div className="bg-white rounded-2xl border border-[#C9B8A6]/40 p-6 shadow-xs">
             <div className="flex items-center justify-between mb-3">
               <div>
@@ -783,21 +795,33 @@ export default function ProfilePage() {
             )}
           </div>
 
+          )}
+
           {/* TARJETA 3: ACERCA DE (BIO) */}
           <div className="bg-white rounded-2xl border border-[#C9B8A6]/40 p-6 shadow-xs">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-extrabold text-[#5A0F24]">Acerca de</h3>
+              <h3 className="text-lg font-extrabold text-[#5A0F24]">
+                {isClient ? 'Acerca de mí / empresa' : 'Acerca de'}
+              </h3>
               <button
                 onClick={openEditModal}
                 className="p-1.5 rounded-full hover:bg-[#F3EFE6] text-[#8C2C45] transition cursor-pointer"
-                title="Editar biografía"
+                title={isClient ? 'Editar descripción' : 'Editar biografía'}
               >
                 <Pencil className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-sm text-[#2b1b1e]/90 leading-relaxed whitespace-pre-line font-normal">
-              {profile.bio}
-            </p>
+            {profile.bio ? (
+              <p className="text-sm text-[#2b1b1e]/90 leading-relaxed whitespace-pre-line font-normal">
+                {profile.bio}
+              </p>
+            ) : (
+              <p className="text-sm text-[#7A6A63] italic">
+                {isClient
+                  ? 'Agrega una descripción sobre tu empresa, proyectos o el tipo de talento que buscas.'
+                  : 'Agrega una biografía profesional para destacar tu experiencia.'}
+              </p>
+            )}
           </div>
         </div>
 
@@ -827,12 +851,13 @@ export default function ProfilePage() {
             <p className="text-xs text-[#F3EFE6]/80 leading-relaxed font-normal">
               Todos los contratos iniciados a través de tu perfil cuentan con protección de fondos en custodia Escrow hasta la aprobación formal de cada hito.
             </p>
-            <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
-              <span className="text-[#C68A8F] font-semibold">Tarifa Configurada:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setQuickRate(profile.hourlyRate || 35);
+            {!isClient && (
+              <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
+                <span className="text-[#C68A8F] font-semibold">Tarifa Configurada:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuickRate(profile.hourlyRate || 35);
                   setIsRateModalOpen(true);
                 }}
                 className="font-extrabold text-white hover:text-[#C68A8F] underline flex items-center gap-1 cursor-pointer"
@@ -842,15 +867,18 @@ export default function ProfilePage() {
                 <Pencil className="w-3 h-3 text-[#C68A8F]" />
               </button>
             </div>
+            )}
           </div>
 
-          {/* VOLVER AL DASHBOARD */}
+          {/* VOLVER AL DASHBOARD O ONBOARDING */}
           <Link
-            to="/dashboard"
+            to={useLocation().state?.from === '/onboarding' ? '/onboarding' : '/dashboard'}
             className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-white border border-[#C9B8A6]/60 hover:bg-[#F3EFE6] text-[#5A0F24] text-sm font-bold rounded-xl shadow-xs transition"
           >
             <ArrowLeft className="w-4 h-4 text-[#8C2C45]" />
-            <span>Volver al Feed Principal</span>
+            <span>
+              {useLocation().state?.from === '/onboarding' ? 'Volver al Onboarding' : 'Volver al Feed Principal'}
+            </span>
           </Link>
         </div>
       </main>
@@ -1041,14 +1069,14 @@ export default function ProfilePage() {
 
               <div>
                 <label className="block text-xs font-bold text-[#5A0F24] mb-1">
-                  Titular / Título Profesional *
+                  {isClient ? 'Titular / Empresa *' : 'Titular / Título Profesional *'}
                 </label>
                 <textarea
                   rows={2}
                   required
                   value={formData.professionalTitle}
                   onChange={(e) => setFormData({ ...formData, professionalTitle: e.target.value })}
-                  placeholder="ej. Desarrollador Fullstack | React | Node.js"
+                  placeholder={isClient ? 'ej. Fundador en Acme Corp | Busco talento web' : 'ej. Desarrollador Fullstack | React | Node.js'}
                   className="w-full px-3 py-2 border border-[#C9B8A6]/60 rounded-xl text-sm text-[#2b1b1e] focus:ring-2 focus:ring-[#8C2C45] focus:outline-none"
                 />
               </div>
@@ -1079,22 +1107,24 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-[#5A0F24] mb-1">
-                  Tarifa por hora ($ USD)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={formData.hourlyRate}
-                  onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#C9B8A6]/60 rounded-xl text-sm text-[#2b1b1e] focus:ring-2 focus:ring-[#8C2C45] focus:outline-none"
-                />
-              </div>
+              {!isClient && (
+                <div>
+                  <label className="block text-xs font-bold text-[#5A0F24] mb-1">
+                    Tarifa por hora ($ USD)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formData.hourlyRate}
+                    onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#C9B8A6]/60 rounded-xl text-sm text-[#2b1b1e] focus:ring-2 focus:ring-[#8C2C45] focus:outline-none"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-[#5A0F24] mb-1">
-                  Acerca de (Biografía profesional)
+                  {isClient ? 'Acerca de mí / empresa' : 'Acerca de (Biografía profesional)'}
                 </label>
                 <textarea
                   rows={4}

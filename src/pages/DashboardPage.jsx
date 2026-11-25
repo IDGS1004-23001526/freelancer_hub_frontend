@@ -35,7 +35,7 @@ import { useChatStore } from '../stores/chat.store.js';
 import { profileApi } from '../api/profile.api.js';
 import ProjectChatDrawer from '../features/chat/components/ProjectChatDrawer.jsx';
 
-import { resolveAvatarUrl } from '../utils/avatar.js';
+import { DEFAULT_AVATAR, resolveAvatarUrl } from '../utils/avatar.js';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -55,7 +55,7 @@ export default function DashboardPage() {
   const [profileData, setProfileData] = useState({
     professionalTitle: '',
     location: '',
-    avatarUrl: '/avatar-sample.jpg',
+    avatarUrl: DEFAULT_AVATAR,
   });
   const [devNews, setDevNews] = useState([]);
   const [showAllNews, setShowAllNews] = useState(false);

@@ -61,10 +61,18 @@ export default function DashboardPage() {
   const [showAllNews, setShowAllNews] = useState(false);
 
   useEffect(() => {
-    fetch('https://dev.to/api/articles?per_page=15&top=7')
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
+    Promise.all([
+      fetch('https://dev.to/api/articles?tag=spanish&per_page=15').then((r) => (r.ok ? r.json() : [])),
+      fetch('https://dev.to/api/articles?tag=espanol&per_page=10').then((r) => (r.ok ? r.json() : [])),
+    ])
+      .then(([spanish, espanol]) => {
+        const merged = [...(Array.isArray(spanish) ? spanish : []), ...(Array.isArray(espanol) ? espanol : [])];
+        const uniqueMap = new Map();
+        merged.forEach((a) => {
+          if (a?.id && !uniqueMap.has(a.id)) uniqueMap.set(a.id, a);
+        });
+        const data = Array.from(uniqueMap.values());
+        if (data.length > 0) {
           setDevNews(data);
           const feedArticles = data.map((article) => ({
             id: `devto-${article.id}`,
@@ -72,9 +80,9 @@ export default function DashboardPage() {
               name: article.user?.name || 'Dev.to',
               avatarText: (article.user?.name || 'DV').slice(0, 2).toUpperCase(),
               headline:
-                (Array.isArray(article.tag_list) && article.tag_list.length > 0
+                Array.isArray(article.tag_list) && article.tag_list.length > 0
                   ? article.tag_list.slice(0, 3).map((t) => `#${t}`).join(' ')
-                  : 'Desarrollo de Software'),
+                  : 'Desarrollo de Software',
               verified: true,
             },
             time: article.readable_publish_date || 'Reciente',

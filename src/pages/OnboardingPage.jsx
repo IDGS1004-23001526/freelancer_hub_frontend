@@ -19,7 +19,7 @@ import ProfileCompletionModal from '../features/profile/components/ProfileComple
 export default function OnboardingPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
 
   const currentUser = location.state?.newUser || user || {
     fullName: 'Nuevo Usuario',
@@ -294,12 +294,16 @@ export default function OnboardingPage() {
               <span>Ir al Dashboard de Clientes</span>
             </Link>
 
-            <Link
-              to="/login"
-              className="text-xs font-semibold text-[#8C2C45] hover:text-[#5A0F24] py-2 px-3 transition-colors"
+            <button
+              type="button"
+              onClick={() => {
+                logout();
+                navigate('/login');
+              }}
+              className="text-xs font-semibold text-[#8C2C45] hover:text-[#5A0F24] py-2 px-3 transition-colors cursor-pointer"
             >
               Volver al Login
-            </Link>
+            </button>
           </div>
         </div>
       </div>

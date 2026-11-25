@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Plus,
@@ -19,8 +19,12 @@ import { useAuthStore } from '../stores/auth.store.js';
 
 export default function ClientDashboardPage() {
   const location = useLocation();
-  const { projects, wallet } = useProjectStore();
+  const { projects, wallet, fetchProjects } = useProjectStore();
   const { user } = useAuthStore();
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('TODAS');

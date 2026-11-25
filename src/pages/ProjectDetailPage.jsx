@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useLocation, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -14,18 +14,72 @@ import {
   UserCheck,
   Clock,
   Users,
+  Send,
+  Loader2,
 } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout.jsx';
 import CandidateComparisonView from '../features/projects/components/CandidateComparisonView.jsx';
 import { useProjectStore } from '../stores/project.store.js';
+import { useAuthStore } from '../stores/auth.store.js';
+import { apiClient } from '../api/client.js';
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
   const location = useLocation();
   const { getProjectById } = useProjectStore();
+  const { user } = useAuthStore();
+  const isClient = user?.role === 'CLIENT';
 
   const project = location.state?.project || getProjectById(id);
   const justCreated = Boolean(location.state?.justCreated);
+
+  const [coverLetter, setCoverLetter] = useState('');
+  const [totalPrice, setTotalPrice] = useState(project?.budget ? String(project.budget) : '');
+  const [estimatedDays, setEstimatedDays] = useState('14');
+  const [milestoneTitle, setMilestoneTitle] = useState('Entrega completa del proyecto');
+  const [submittingProposal, setSubmittingProposal] = useState(false);
+  const [proposalFeedback, setProposalFeedback] = useState(null);
+
+  const handleSubmitProposal = async (e) => {
+    e.preventDefault();
+    if (!project?.id || submittingProposal) return;
+
+    const priceNum = Number(totalPrice);
+    const daysNum = parseInt(estimatedDays, 10);
+
+    setSubmittingProposal(true);
+    setProposalFeedback(null);
+
+    try {
+      await apiClient.post('/v1/proposals', {
+        projectId: project.id,
+        coverLetter: coverLetter.trim(),
+        totalPrice: priceNum,
+        estimatedDays: daysNum,
+        milestones: [
+          {
+            title: milestoneTitle.trim() || 'Entrega completa del proyecto',
+            amount: priceNum,
+            deliveryDays: daysNum,
+            order: 1,
+          },
+        ],
+      });
+      setProposalFeedback({
+        type: 'success',
+        text: '¡Tu postulación fue enviada exitosamente al cliente!',
+      });
+      setCoverLetter('');
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.errors?.[0]?.message ||
+        'No se pudo enviar tu postulación. Verifica los campos.';
+      setProposalFeedback({ type: 'error', text: msg });
+    } finally {
+      setSubmittingProposal(false);
+    }
+  };
 
   if (!project) {
     return (
@@ -266,29 +320,132 @@ export default function ProjectDetailPage() {
               Ir al Catálogo de Proyectos
             </Link>
 
-            <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2.5">
-              <Link
-                to={`/projects/${project.id}/candidates`}
-                data-testid="link-compare-candidates"
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#5A0F24] hover:bg-[#8C2C45] text-[#F3EFE6] text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
-              >
-                <Users className="w-4 h-4 text-[#C68A8F]" />
-                <span>Abrir comparador en pantalla completa</span>
-              </Link>
+            {isClient && (
+              <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2.5">
+                <Link
+                  to={`/projects/${project.id}/candidates`}
+                  data-testid="link-compare-candidates"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#5A0F24] hover:bg-[#8C2C45] text-[#F3EFE6] text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Users className="w-4 h-4 text-[#C68A8F]" />
+                  <span>Abrir comparador en pantalla completa</span>
+                </Link>
 
-              <Link
-                to="/projects/new"
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
-              >
-                <Plus className="w-4 h-4" />
-                <span>+ Publicar Otra Convocatoria</span>
-              </Link>
-            </div>
+                <Link
+                  to="/projects/new"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Publicar Otra Convocatoria</span>
+                </Link>
+              </div>
+            )}
           </div>
         </article>
 
-        {/* Matriz Comparativa de Candidatos integrada en el detalle */}
-        <CandidateComparisonView project={project} />
+        {/* Matriz Comparativa de Candidatos (solo Cliente) */}
+        {isClient ? (
+          <CandidateComparisonView project={project} />
+        ) : (
+          <section className="bg-white rounded-3xl p-6 md:p-8 shadow-[0_15px_40px_-15px_rgba(90,15,36,0.1)] border border-[#C9B8A6]/50 space-y-5">
+            <div>
+              <h2 className="text-lg font-extrabold text-[#5A0F24]">
+                Postularme a esta convocatoria
+              </h2>
+              <p className="text-xs text-[#5A0F24]/70 mt-1">
+                Envía tu propuesta económica, tiempo estimado y carta de presentación al cliente.
+              </p>
+            </div>
+
+            {proposalFeedback && (
+              <div
+                className={`p-3.5 rounded-xl text-xs font-bold border ${
+                  proposalFeedback.type === 'success'
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                    : 'bg-red-50 border-red-300 text-red-900'
+                }`}
+              >
+                {proposalFeedback.text}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitProposal} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-[#5A0F24] mb-1">
+                    Tu oferta total ({project.currency || 'USD'}) *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={totalPrice}
+                    onChange={(e) => setTotalPrice(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#C9B8A6]/60 text-sm text-[#2b1b1e] focus:ring-2 focus:ring-[#8C2C45] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#5A0F24] mb-1">
+                    Días estimados de entrega *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    required
+                    value={estimatedDays}
+                    onChange={(e) => setEstimatedDays(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#C9B8A6]/60 text-sm text-[#2b1b1e] focus:ring-2 focus:ring-[#8C2C45] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#5A0F24] mb-1">
+                  Hito principal de entrega *
+                </label>
+                <input
+                  type="text"
+                  minLength={5}
+                  required
+                  value={milestoneTitle}
+                  onChange={(e) => setMilestoneTitle(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#C9B8A6]/60 text-sm text-[#2b1b1e] focus:ring-2 focus:ring-[#8C2C45] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#5A0F24] mb-1">
+                  Carta de presentación (mínimo 20 caracteres) *
+                </label>
+                <textarea
+                  rows={4}
+                  minLength={20}
+                  required
+                  value={coverLetter}
+                  onChange={(e) => setCoverLetter(e.target.value)}
+                  placeholder="Describe tu experiencia relevante y cómo abordarás este proyecto..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#C9B8A6]/60 text-sm text-[#2b1b1e] focus:ring-2 focus:ring-[#8C2C45] focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={submittingProposal}
+                  className="px-6 py-2.5 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-xs font-bold flex items-center gap-2 transition cursor-pointer disabled:opacity-60"
+                >
+                  {submittingProposal ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  <span>{submittingProposal ? 'Enviando...' : 'Enviar Postulación'}</span>
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
       </div>
     </DashboardLayout>
   );

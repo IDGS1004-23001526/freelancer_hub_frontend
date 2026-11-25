@@ -249,36 +249,27 @@ export default function ProjectForm({ onValidationChange }) {
 
     setIsSubmitting(true);
 
+    const isoEstimatedDate = estimatedDate.includes('T')
+      ? estimatedDate
+      : new Date(`${estimatedDate}T00:00:00.000Z`).toISOString();
+
     const payload = {
       title: title.trim(),
       description: description.trim(),
       budget: Number(budget),
       currency: 'MXN',
-      estimatedDate,
+      estimatedDate: isoEstimatedDate,
       skills,
       category: category || 'Desarrollo Web',
     };
 
-    const jwtToken =
-      accessToken ||
-      localStorage.getItem('fh_access_token') ||
-      localStorage.getItem('token') ||
-      '';
-
     const clientDisplayName = user?.fullName
       ? `${user.fullName} • Cliente Verificado`
-      : 'Sofía Ramírez • Estudio Nexus';
+      : 'Cliente Verificado';
 
     try {
-      const response = await apiClient.post('/v1/projects', payload, {
-        headers: jwtToken
-          ? { Authorization: `Bearer ${jwtToken}` }
-          : undefined,
-      });
-
-      const createdFromApi = response?.data?.data || response?.data;
-
-      await createProject(payload, clientDisplayName);
+      const result = await createProject(payload, clientDisplayName);
+      const createdFromApi = result?.project;
 
       setToast({
         type: 'success',

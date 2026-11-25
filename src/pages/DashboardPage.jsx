@@ -57,6 +57,17 @@ export default function DashboardPage() {
     location: '',
     avatarUrl: '/avatar-sample.jpg',
   });
+  const [devNews, setDevNews] = useState([]);
+  const [showAllNews, setShowAllNews] = useState(false);
+
+  useEffect(() => {
+    fetch('https://dev.to/api/articles?per_page=8&top=7')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) setDevNews(data);
+      })
+      .catch(() => {});
+  }, []);
 
   // Modal para crear publicación
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
@@ -600,55 +611,38 @@ export default function DashboardPage() {
             <p className="text-[11px] font-semibold text-[#2b1b1e]/60 mb-3">Historias destacadas</p>
 
             <ul className="space-y-3 text-xs">
-              <li>
-                <a href="#noticias" className="group block">
-                  <p className="font-bold text-[#5A0F24] group-hover:text-[#8C2C45] line-clamp-1 leading-snug">
-                    Chile supera el millón de personas sin ...
-                  </p>
-                  <span className="text-[10px] text-[#C9B8A6]">Hace 1 día • 298 lectores</span>
-                </a>
-              </li>
-              <li>
-                <a href="#noticias" className="group block">
-                  <p className="font-bold text-[#5A0F24] group-hover:text-[#8C2C45] line-clamp-1 leading-snug">
-                    Las marcas más valiosas del mundo en ...
-                  </p>
-                  <span className="text-[10px] text-[#C9B8A6]">Hace 1 día • 267 lectores</span>
-                </a>
-              </li>
-              <li>
-                <a href="#noticias" className="group block">
-                  <p className="font-bold text-[#5A0F24] group-hover:text-[#8C2C45] line-clamp-1 leading-snug">
-                    Anthropic se alista para salir a bolsa en ...
-                  </p>
-                  <span className="text-[10px] text-[#C9B8A6]">Hace 3 días • 548 lectores</span>
-                </a>
-              </li>
-              <li>
-                <a href="#noticias" className="group block">
-                  <p className="font-bold text-[#5A0F24] group-hover:text-[#8C2C45] line-clamp-1 leading-snug">
-                    Los superricos agravan la crisis climática: ...
-                  </p>
-                  <span className="text-[10px] text-[#C9B8A6]">Hace 3 días • 519 lectores</span>
-                </a>
-              </li>
-              <li>
-                <a href="#noticias" className="group block">
-                  <p className="font-bold text-[#5A0F24] group-hover:text-[#8C2C45] line-clamp-1 leading-snug">
-                    La IA está desgastando las habilidades de...
-                  </p>
-                  <span className="text-[10px] text-[#C9B8A6]">Hace 4 días • 451 lectores</span>
-                </a>
-              </li>
+              {devNews.length === 0 ? (
+                <li className="text-[#2b1b1e]/50 text-[11px]">Cargando noticias de desarrollo...</li>
+              ) : (
+                devNews.slice(0, showAllNews ? 8 : 5).map((article) => (
+                  <li key={article.id}>
+                    <a
+                      href={article.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group block"
+                    >
+                      <p className="font-bold text-[#5A0F24] group-hover:text-[#8C2C45] line-clamp-1 leading-snug">
+                        {article.title}
+                      </p>
+                      <span className="text-[10px] text-[#C9B8A6]">
+                        {article.readable_publish_date} • {article.public_reactions_count} reacciones
+                      </span>
+                    </a>
+                  </li>
+                ))
+              )}
             </ul>
 
-            <button
-              onClick={() => alert('Cargando más noticias')}
-              className="mt-3 text-xs font-bold text-[#8C2C45] hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              <span>Mostrar más noticias</span>
-              <ChevronDown className="w-3.5 h-3.5" />
-            </button>
+            {devNews.length > 5 && (
+              <button
+                onClick={() => setShowAllNews((prev) => !prev)}
+                className="mt-3 text-xs font-bold text-[#8C2C45] hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>{showAllNews ? 'Mostrar menos' : 'Mostrar más noticias'}</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAllNews ? 'rotate-180' : ''}`} />
+              </button>
+            )}
           </div>
 
           {/* FOOTER DISCRETO Y ELEGANTE */}

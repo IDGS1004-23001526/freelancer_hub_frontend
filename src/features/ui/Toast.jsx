@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 /**
@@ -13,10 +13,16 @@ export default function Toast({
   onClose,
 }) {
   const [progress, setProgress] = useState(100);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!duration || duration <= 0) return;
 
+    setProgress(100);
     const intervalTime = 50;
     const step = (intervalTime / duration) * 100;
 
@@ -25,14 +31,14 @@ export default function Toast({
     }, intervalTime);
 
     const closeTimer = setTimeout(() => {
-      if (onClose) onClose();
+      if (onCloseRef.current) onCloseRef.current();
     }, duration);
 
     return () => {
       clearInterval(timer);
       clearTimeout(closeTimer);
     };
-  }, [duration, onClose]);
+  }, [duration, message, title, type]);
 
   const variants = {
     success: {
@@ -62,7 +68,7 @@ export default function Toast({
     <div
       role="status"
       aria-live="polite"
-      className="fixed top-5 right-5 z-50 max-w-sm w-full transition-all duration-300 ease-out transform translate-y-0"
+      className="fixed top-4 left-4 right-4 sm:left-auto sm:top-5 sm:right-5 z-50 sm:max-w-sm sm:w-full transition-all duration-300 ease-out transform translate-y-0"
     >
       <div
         className={`relative overflow-hidden rounded-2xl border p-4 backdrop-blur-sm ${currentVariant.container}`}

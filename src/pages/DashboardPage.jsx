@@ -35,6 +35,13 @@ import { useChatStore } from '../stores/chat.store.js';
 import { profileApi } from '../api/profile.api.js';
 import ProjectChatDrawer from '../features/chat/components/ProjectChatDrawer.jsx';
 
+const API_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:4000/api').replace(/\/api\/?$/, '');
+const resolveAvatarUrl = (url) => {
+  if (!url) return '/avatar-sample.jpg';
+  if (url.startsWith('/uploads/')) return `${API_ORIGIN}${url}`;
+  return url;
+};
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
@@ -134,7 +141,7 @@ export default function DashboardPage() {
           ...prev,
           professionalTitle: res.data.professionalTitle || prev.professionalTitle,
           location: res.data.location || prev.location,
-          avatarUrl: res.data.avatarUrl || prev.avatarUrl,
+          avatarUrl: resolveAvatarUrl(res.data.avatarUrl || prev.avatarUrl),
         }));
       }
     } catch {

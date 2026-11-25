@@ -164,7 +164,7 @@ export default function ProfilePage() {
             last_name: lName,
             professionalTitle: p.professionalTitle || prev.professionalTitle,
             bio: p.bio || prev.bio,
-            phone: p.phone || prev.phone,
+            phone: (typeof p.phone === 'object' && p.phone !== null ? (p.phone.value || p.phone.number || '') : p.phone) || prev.phone,
             hourlyRate: hr,
             avatarUrl: resolveAvatarUrl(p.avatarUrl || prev.avatarUrl),
             skills: normalizedSkills.length > 0 ? normalizedSkills : prev.skills,
@@ -1123,7 +1123,7 @@ export default function ProfilePage() {
                   className="px-5 py-2 bg-[#8C2C45] hover:bg-[#5A0F24] text-white rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition cursor-pointer"
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  <span>{saving ? 'Guardando en API...' : 'Guardar Cambios (PUT /users/me/profile)'}</span>
+                  <span>{saving ? 'Guardando...' : 'Guardar Cambios'}</span>
                 </button>
               </div>
             </form>

@@ -40,6 +40,13 @@ import {
 import { useAuthStore } from '../stores/auth.store.js';
 import { profileApi } from '../api/profile.api.js';
 
+const API_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:4000/api').replace(/\/api\/?$/, '');
+const resolveAvatarUrl = (url) => {
+  if (!url) return '/avatar-sample.jpg';
+  if (url.startsWith('/uploads/')) return `${API_ORIGIN}${url}`;
+  return url;
+};
+
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
@@ -179,7 +186,7 @@ export default function ProfilePage() {
             bio: p.bio || prev.bio,
             phone: p.phone || prev.phone,
             hourlyRate: hr,
-            avatarUrl: p.avatarUrl || prev.avatarUrl || '/avatar-sample.jpg',
+            avatarUrl: resolveAvatarUrl(p.avatarUrl || prev.avatarUrl),
             skills: normalizedSkills.length > 0 ? normalizedSkills : prev.skills,
             portfolioItems: p.portfolioItems && p.portfolioItems.length > 0 ? p.portfolioItems : prev.portfolioItems,
           };
@@ -340,11 +347,14 @@ export default function ProfilePage() {
     try {
       const res = await profileApi.uploadAvatar(file);
       if (res?.data?.avatarUrl) {
-        setProfile((prev) => ({ ...prev, avatarUrl: res.data.avatarUrl }));
+        setProfile((prev) => ({ ...prev, avatarUrl: resolveAvatarUrl(res.data.avatarUrl) }));
       }
       setFeedback({ type: 'success', text: 'Foto de perfil subida exitosamente' });
-    } catch {
-      setFeedback({ type: 'success', text: 'Foto actualizada en tu sesión local' });
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        text: err?.response?.data?.message || 'Error al subir la foto de perfil',
+      });
     } finally {
       setUploadingAvatar(false);
       setTimeout(() => setFeedback(null), 3000);

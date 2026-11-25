@@ -15,11 +15,14 @@ import CandidateComparisonPage from '../pages/CandidateComparisonPage.jsx';
 import ContractKanbanPage from '../pages/ContractKanbanPage.jsx';
 import ContractScopePage from '../pages/ContractScopePage.jsx';
 import MessagesPage from '../pages/MessagesPage.jsx';
+import FreelancerProjectsPage from '../pages/FreelancerProjectsPage.jsx';
 import { useAuthStore } from '../stores/auth.store.js';
 
 export default function AppRoutes() {
   const { isAuthenticated, user } = useAuthStore();
   const isClient = user?.role === 'CLIENT' || user?.role === 'CLIENTE';
+  const isFreelancer =
+    user?.role === 'FREELANCER' || (Boolean(user) && !isClient && user?.role !== 'ADMIN');
 
   return (
     <Routes>
@@ -28,18 +31,53 @@ export default function AppRoutes() {
       <Route path="/onboarding" element={<OnboardingPage />} />
       <Route path="/dashboard" element={isClient ? <ClientDashboardPage /> : <DashboardPage />} />
       <Route path="/network" element={<NetworkPage />} />
-      <Route path="/client-dashboard" element={<ClientDashboardPage />} />
+      <Route
+        path="/client-dashboard"
+        element={!isFreelancer ? <ClientDashboardPage /> : <Navigate to="/dashboard" replace />}
+      />
       <Route path="/social" element={<DashboardPage />} />
       <Route path="/profile" element={<ProfilePage />} />
-      <Route path="/projects" element={<ClientDashboardPage />} />
-      <Route path="/feed" element={<ClientDashboardPage />} />
-      <Route path="/projects/new" element={<CreateProjectPage />} />
-      <Route path="/projects/create" element={<CreateProjectPage />} />
-      <Route path="/create-project" element={<CreateProjectPage />} />
+      <Route
+        path="/projects"
+        element={isFreelancer ? <FreelancerProjectsPage defaultTab="projects" /> : <ClientDashboardPage />}
+      />
+      <Route
+        path="/feed"
+        element={isFreelancer ? <FreelancerProjectsPage defaultTab="projects" /> : <ClientDashboardPage />}
+      />
+      <Route
+        path="/my-proposals"
+        element={isClient ? <Navigate to="/candidates" replace /> : <FreelancerProjectsPage defaultTab="proposals" />}
+      />
+      <Route
+        path="/postulations"
+        element={isClient ? <Navigate to="/candidates" replace /> : <FreelancerProjectsPage defaultTab="proposals" />}
+      />
+      <Route
+        path="/projects/new"
+        element={!isFreelancer ? <CreateProjectPage /> : <Navigate to="/projects" replace />}
+      />
+      <Route
+        path="/projects/create"
+        element={!isFreelancer ? <CreateProjectPage /> : <Navigate to="/projects" replace />}
+      />
+      <Route
+        path="/create-project"
+        element={!isFreelancer ? <CreateProjectPage /> : <Navigate to="/projects" replace />}
+      />
       <Route path="/projects/:id" element={<ProjectDetailPage />} />
-      <Route path="/projects/:id/candidates" element={<CandidateComparisonPage />} />
-      <Route path="/projects/:id/proposals" element={<CandidateComparisonPage />} />
-      <Route path="/candidates" element={<CandidateComparisonPage />} />
+      <Route
+        path="/projects/:id/candidates"
+        element={!isFreelancer ? <CandidateComparisonPage /> : <Navigate to="/projects" replace />}
+      />
+      <Route
+        path="/projects/:id/proposals"
+        element={!isFreelancer ? <CandidateComparisonPage /> : <Navigate to="/projects" replace />}
+      />
+      <Route
+        path="/candidates"
+        element={!isFreelancer ? <CandidateComparisonPage /> : <Navigate to="/my-proposals" replace />}
+      />
       <Route path="/contracts" element={<ContractKanbanPage />} />
       <Route path="/contracts/scope" element={<ContractScopePage />} />
       <Route path="/contracts/:id/scope" element={<ContractScopePage />} />

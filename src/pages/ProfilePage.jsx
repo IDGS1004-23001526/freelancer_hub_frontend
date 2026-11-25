@@ -1,12 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
-  Home,
-  Briefcase,
-  MessageSquare,
-  Bell,
-  ShieldCheck,
-  Search,
   Camera,
   Pencil,
   MapPin,
@@ -20,7 +14,6 @@ import {
   GraduationCap,
   X,
   Save,
-  ArrowLeft,
   DollarSign,
   Phone,
   Mail,
@@ -35,16 +28,15 @@ import {
   Tag,
   Loader2,
   Lock,
-  LogOut,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/auth.store.js';
 import { profileApi } from '../api/profile.api.js';
+import DashboardLayout from '../layouts/DashboardLayout.jsx';
 
 import { resolveAvatarUrl } from '../utils/avatar.js';
 
 export default function ProfilePage() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   const fileInputRef = useRef(null);
 
   const currentUser = user || {
@@ -85,7 +77,6 @@ export default function ProfilePage() {
   const [isInterestsModalOpen, setIsInterestsModalOpen] = useState(false);
   const [isSkillsModalOpen, setIsSkillsModalOpen] = useState(false);
   const [isRateModalOpen, setIsRateModalOpen] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [quickRate, setQuickRate] = useState(35);
 
   // Catálogo de habilidades
@@ -336,15 +327,6 @@ export default function ProfilePage() {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login');
-    } catch {
-      navigate('/login');
-    }
-  };
-
   /**
    * CONSUMO DE API: PUT /api/v1/users/me/profile (Actualización directa de Tarifa)
    */
@@ -402,125 +384,7 @@ export default function ProfilePage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#f6f2ee] text-[#2b1b1e] font-sans antialiased">
-      {/* NAVBAR SUPERIOR ESTILO LINKEDIN (PALETA WINE & CREAM) */}
-      <header className="sticky top-0 z-40 bg-white border-b border-[#C9B8A6]/40 shadow-xs">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 flex-1 max-w-md">
-            <Link to="/dashboard" className="flex items-center gap-2 group">
-              <div className="w-9 h-9 rounded-lg bg-[#8C2C45] flex items-center justify-center text-white font-black text-xl shadow-xs group-hover:bg-[#5A0F24] transition">
-                FH
-              </div>
-            </Link>
-
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#C9B8A6]" />
-              <input
-                type="text"
-                placeholder="Buscar en FreelancerHub..."
-                className="w-full bg-[#F3EFE6] text-sm text-[#2b1b1e] placeholder-[#5A0F24]/50 rounded-lg pl-9 pr-4 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#8C2C45] focus:bg-white transition border border-[#C9B8A6]/30"
-              />
-            </div>
-          </div>
-
-          <nav className="flex items-center gap-1 sm:gap-6">
-            <Link
-              to="/dashboard"
-              className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition"
-            >
-              <Home className="w-5 h-5 mb-0.5" />
-              <span>Inicio</span>
-            </Link>
-            <Link
-              to="/onboarding"
-              className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition"
-            >
-              <Users className="w-5 h-5 mb-0.5" />
-              <span>Mi red</span>
-            </Link>
-            <Link
-              to="/dashboard"
-              className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition"
-            >
-              <Briefcase className="w-5 h-5 mb-0.5" />
-              <span>Proyectos</span>
-            </Link>
-            <button className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition cursor-pointer">
-              <MessageSquare className="w-5 h-5 mb-0.5" />
-              <span>Mensajes</span>
-            </button>
-            <button className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition cursor-pointer">
-              <Bell className="w-5 h-5 mb-0.5" />
-              <span>Avisos</span>
-            </button>
-
-            {/* Avatar Dropdown Activo (Yo ▾ con Cerrar sesión) */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex flex-col items-center justify-center text-[#8C2C45] border-b-2 border-[#8C2C45] text-[11px] font-bold py-1 px-2 group cursor-pointer"
-                title="Cuenta y opciones"
-              >
-                <img
-                  src={profile.avatarUrl}
-                  alt="Yo"
-                  className="w-5 h-5 rounded-full object-cover ring-2 ring-[#8C2C45]"
-                  onError={(e) => {
-                    e.target.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
-                  }}
-                />
-                <span>Yo ▾</span>
-              </button>
-
-              {/* Menú desplegable */}
-              {isUserMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-[#C9B8A6]/40 p-3 z-50 animate-in fade-in duration-150">
-                  <div className="flex items-center gap-2.5 pb-3 border-b border-[#C9B8A6]/20">
-                    <img
-                      src={profile.avatarUrl}
-                      alt="Yo"
-                      className="w-10 h-10 rounded-full object-cover ring-1 ring-[#C9B8A6]"
-                      onError={(e) => {
-                        e.target.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
-                      }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-xs font-bold text-[#5A0F24] truncate">
-                        {profile.firstName || currentUser.fullName} {profile.lastName || ''}
-                      </h4>
-                      <p className="text-[10px] text-[#2b1b1e]/60 truncate">{profile.professionalTitle}</p>
-                      <span className="inline-block mt-0.5 px-1.5 py-0.5 bg-[#F3EFE6] text-[#8C2C45] text-[9px] font-extrabold rounded-md">
-                        Freelancer Activo
-                      </span>
-                    </div>
-                  </div>
-
-                  <Link
-                    to="/profile"
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="mt-2.5 block w-full text-center py-1.5 px-3 rounded-xl border border-[#8C2C45] text-[#8C2C45] hover:bg-[#F3EFE6] text-xs font-bold transition"
-                  >
-                    Ver mi perfil
-                  </Link>
-
-                  <div className="pt-2 mt-2 border-t border-[#C9B8A6]/20">
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-xs font-bold text-red-700 hover:bg-red-50 transition cursor-pointer"
-                    >
-                      <LogOut className="w-4 h-4 text-red-600" />
-                      <span>Cerrar sesión</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </nav>
-        </div>
-      </header>
-
+    <DashboardLayout>
       {/* FEEDBACK TOAST CON PALETA CORPORATIVA */}
       {feedback && (
         <div
@@ -536,7 +400,7 @@ export default function ProfilePage() {
       )}
 
       {/* CONTENEDOR PRINCIPAL */}
-      <main className="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* COLUMNA CENTRAL (8 COLS) */}
         <div className="lg:col-span-8 space-y-4">
           {/* TARJETA 1: HEADER DEL PERFIL (PALETA WINE, ROSE, SAND, CREAM) */}
@@ -853,7 +717,7 @@ export default function ProfilePage() {
             <span>Volver al Feed Principal</span>
           </Link>
         </div>
-      </main>
+      </div>
 
       {/* MODAL GESTOR DE HABILIDADES (TABLA 'skills' & 'profile_skills') */}
       {isSkillsModalOpen && (
@@ -1309,6 +1173,6 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardLayout>
   );
 }

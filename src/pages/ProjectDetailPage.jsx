@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useLocation, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -14,22 +14,102 @@ import {
   UserCheck,
   Clock,
   Users,
+  Send,
 } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout.jsx';
+import FreelancerLayout from '../layouts/FreelancerLayout.jsx';
 import CandidateComparisonView from '../features/projects/components/CandidateComparisonView.jsx';
+import SubmitProposalModal from '../features/projects/components/SubmitProposalModal.jsx';
+import Toast from '../features/ui/Toast.jsx';
 import { useProjectStore } from '../stores/project.store.js';
+import { useAuthStore } from '../stores/auth.store.js';
+import { projectApi } from '../api/project.api.js';
+import { proposalApi } from '../api/proposal.api.js';
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
   const location = useLocation();
   const { getProjectById } = useProjectStore();
+  const { user } = useAuthStore();
 
-  const project = location.state?.project || getProjectById(id);
+  const storedProject = location.state?.project || getProjectById(id);
+  const [remoteProject, setRemoteProject] = useState(null);
+  const [loadingProject, setLoadingProject] = useState(!storedProject);
+  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
+  const [submittedProposal, setSubmittedProposal] = useState(null);
+  const [alreadyApplied, setAlreadyApplied] = useState(false);
+  const [proposalRefreshKey, setProposalRefreshKey] = useState(0);
+  const [toast, setToast] = useState(null);
+
+  const project = storedProject || remoteProject;
   const justCreated = Boolean(location.state?.justCreated);
+  const isClient = user?.role === 'CLIENT' || user?.role === 'CLIENTE';
+  const ActiveLayout = isClient ? DashboardLayout : FreelancerLayout;
+
+  useEffect(() => {
+    if (storedProject || !id) {
+      setLoadingProject(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingProject(true);
+    projectApi
+      .getProjectById(id)
+      .then((res) => {
+        if (!cancelled && res?.data) {
+          setRemoteProject(res.data);
+        }
+      })
+      .catch(() => {
+        // Mantiene estado de no encontrada si falla la consulta remota
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingProject(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, storedProject]);
+
+  useEffect(() => {
+    if (!project?.id) return;
+    let cancelled = false;
+
+    proposalApi
+      .getMyProposalForProject(project.id, user?.id)
+      .then((existing) => {
+        if (cancelled) return;
+        if (existing) {
+          setSubmittedProposal(existing);
+          setAlreadyApplied(true);
+        } else {
+          setSubmittedProposal(null);
+          setAlreadyApplied(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [project?.id, user?.id]);
+
+  if (loadingProject) {
+    return (
+      <ActiveLayout>
+        <div className="max-w-4xl mx-auto bg-white rounded-3xl p-10 border border-[#C9B8A6]/50 animate-pulse space-y-4">
+          <div className="h-6 w-48 bg-[#F3EFE6] rounded-xl" />
+          <div className="h-10 w-3/4 bg-[#F3EFE6] rounded-xl" />
+          <div className="h-28 w-full bg-[#F3EFE6] rounded-2xl" />
+        </div>
+      </ActiveLayout>
+    );
+  }
 
   if (!project) {
     return (
-      <DashboardLayout>
+      <ActiveLayout>
         <div className="max-w-xl mx-auto bg-white rounded-3xl p-8 text-center border border-[#C9B8A6]/50 space-y-4">
           <h2 className="text-xl font-extrabold text-[#5A0F24]">
             Convocatoria no encontrada
@@ -45,19 +125,49 @@ export default function ProjectDetailPage() {
             <span>Ir al Catálogo de Convocatorias</span>
           </Link>
         </div>
-      </DashboardLayout>
+      </ActiveLayout>
     );
   }
 
-  const isOpen = project.status === 'ABIERTO';
+  const isOpen = project.status === 'ABIERTO' || project.status === 'ACTIVE';
   const formattedBudget = new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: project.currency || 'USD',
     minimumFractionDigits: 2,
   }).format(project.budget);
 
+  const handleProposalSuccess = (proposal) => {
+    setSubmittedProposal(proposal);
+    setAlreadyApplied(true);
+    setProposalRefreshKey((prev) => prev + 1);
+    setToast({
+      type: 'success',
+      title: '¡Propuesta enviada!',
+      message:
+        'Tu propuesta económica y desglose de hitos se han registrado exitosamente.',
+    });
+  };
+
+  const handleAlreadyApplied = (message) => {
+    setAlreadyApplied(true);
+    setToast({
+      type: 'info',
+      title: 'Postulación ya registrada',
+      message: message || 'Ya has enviado una propuesta a este proyecto.',
+    });
+  };
+
   return (
-    <DashboardLayout>
+    <ActiveLayout>
+      {toast && (
+        <Toast
+          type={toast.type}
+          title={toast.title}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Top Navigation */}
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -256,6 +366,43 @@ export default function ProjectDetailPage() {
             </div>
           </div>
 
+          {/* Estado de Postulación del Freelancer */}
+          {alreadyApplied ? (
+            <div
+              role="status"
+              data-testid="already-applied-banner"
+              className="relative z-10 p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs sm:text-sm font-extrabold text-emerald-950">
+                    Ya has enviado una propuesta a este proyecto
+                  </p>
+                  {submittedProposal && (
+                    <p className="text-[11px] text-emerald-900/80">
+                      Oferta registrada por{' '}
+                      <strong>
+                        {new Intl.NumberFormat('es-MX', {
+                          style: 'currency',
+                          currency: 'MXN',
+                        }).format(submittedProposal.totalPrice)}{' '}
+                        MXN
+                      </strong>{' '}
+                      • Plazo de {submittedProposal.estimatedDays} días naturales (
+                      {submittedProposal.milestones?.length || 0} hitos)
+                    </p>
+                  )}
+                </div>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold uppercase tracking-wider self-start sm:self-center">
+                Propuesta enviada
+              </span>
+            </div>
+          ) : null}
+
           {/* Acciones inferiores */}
           <div className="relative z-10 pt-5 border-t border-[#C9B8A6]/40 flex flex-col sm:flex-row items-center justify-between gap-3">
             <Link
@@ -267,29 +414,69 @@ export default function ProjectDetailPage() {
             </Link>
 
             <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2.5">
-              <Link
-                to={`/projects/${project.id}/candidates`}
-                data-testid="link-compare-candidates"
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#5A0F24] hover:bg-[#8C2C45] text-[#F3EFE6] text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
-              >
-                <Users className="w-4 h-4 text-[#C68A8F]" />
-                <span>Abrir comparador en pantalla completa</span>
-              </Link>
+              {isOpen && !isClient && !alreadyApplied && (
+                <button
+                  type="button"
+                  onClick={() => setIsProposalModalOpen(true)}
+                  data-testid="btn-open-submit-proposal"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-xs font-extrabold shadow-[0_6px_18px_-4px_rgba(140,44,69,0.4)] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Postular Propuesta</span>
+                </button>
+              )}
 
-              <Link
-                to="/projects/new"
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
-              >
-                <Plus className="w-4 h-4" />
-                <span>+ Publicar Otra Convocatoria</span>
-              </Link>
+              {!isClient && alreadyApplied && (
+                <Link
+                  to="/my-proposals"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#5A0F24] hover:bg-[#8C2C45] text-[#F3EFE6] text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                  <span>Ver mis postulaciones</span>
+                </Link>
+              )}
+
+              {isClient && (
+                <>
+                  <Link
+                    to={`/projects/${project.id}/candidates`}
+                    data-testid="link-compare-candidates"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#5A0F24] hover:bg-[#8C2C45] text-[#F3EFE6] text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <Users className="w-4 h-4 text-[#C68A8F]" />
+                    <span>Abrir comparador en pantalla completa</span>
+                  </Link>
+
+                  <Link
+                    to="/projects/new"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#F3EFE6] hover:bg-[#e8dfd1] text-[#5A0F24] border border-[#C9B8A6] text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4 text-[#8C2C45]" />
+                    <span>+ Publicar Otra Convocatoria</span>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </article>
 
-        {/* Matriz Comparativa de Candidatos integrada en el detalle */}
-        <CandidateComparisonView project={project} />
+        {/* Matriz Comparativa de Candidatos integrada en el detalle (solo Clientes) */}
+        {isClient && (
+          <CandidateComparisonView
+            key={`${project.id}-${proposalRefreshKey}`}
+            project={project}
+          />
+        )}
       </div>
-    </DashboardLayout>
+
+      {/* Modal de Postulación de Propuesta Económica (FREEL-45 / HU-03) */}
+      <SubmitProposalModal
+        isOpen={isProposalModalOpen}
+        project={project}
+        onClose={() => setIsProposalModalOpen(false)}
+        onSuccess={handleProposalSuccess}
+        onAlreadyApplied={handleAlreadyApplied}
+      />
+    </ActiveLayout>
   );
 }

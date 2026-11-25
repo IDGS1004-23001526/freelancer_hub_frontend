@@ -1,258 +1,343 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Plus,
-  CreditCard,
-  LayoutDashboard,
-  FolderKanban,
-  ShieldCheck,
-  LogOut,
-  ChevronDown,
-  Sparkles,
-  CheckCircle2,
-  User,
+  Home,
+  Briefcase,
+  MessageSquare,
+  Bell,
+  Search,
   Users,
+  FileCheck2,
+  CheckCircle2,
+  CreditCard,
+  Plus,
+  LogOut,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/auth.store.js';
+import { useChatStore } from '../stores/chat.store.js';
+import { profileApi } from '../api/profile.api.js';
+import ProjectChatDrawer from '../features/chat/components/ProjectChatDrawer.jsx';
 
-export default function DashboardLayout({ children }) {
+export default function DashboardLayout({
+  children,
+  searchValue = '',
+  onSearchChange,
+  searchPlaceholder,
+}) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const { conversations, openDrawer, loadConversations } = useChatStore();
 
-  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [localSearch, setLocalSearch] = useState(searchValue);
+  const [profileMeta, setProfileMeta] = useState({
+    professionalTitle: '',
+    avatarUrl: '/avatar-sample.jpg',
+  });
 
-  const displayName = user?.fullName || 'Sofía Ramírez';
-  const displayEmail = user?.email || 'sofia@estudionexus.com';
+  const isClient = user?.role === 'CLIENT' || user?.role === 'CLIENTE';
+  const currentUser = user || {
+    id: 'usr_me',
+    fullName: isClient ? 'Cliente' : 'Freelancer',
+    email: '',
+    role: isClient ? 'CLIENT' : 'FREELANCER',
+  };
 
-  const getInitials = (name) => {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  useEffect(() => {
+    setLocalSearch(searchValue);
+  }, [searchValue]);
+
+  useEffect(() => {
+    let cancelled = false;
+    profileApi
+      .getMyProfile()
+      .then((res) => {
+        if (cancelled || !res?.data) return;
+        const p = res.data;
+        setProfileMeta((prev) => ({
+          professionalTitle: p.professionalTitle || prev.professionalTitle,
+          avatarUrl: p.avatarUrl || prev.avatarUrl,
+        }));
+      })
+      .catch(() => {
+        // Mantiene valores por defecto si aún no hay perfil cargado
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSearchInput = (e) => {
+    const val = e.target.value;
+    setLocalSearch(val);
+    if (onSearchChange) {
+      onSearchChange(val);
     }
-    return name.slice(0, 2).toUpperCase();
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter' && !onSearchChange && localSearch.trim()) {
+      navigate(`/projects?q=${encodeURIComponent(localSearch.trim())}`);
+    }
   };
 
   const handleLogout = async () => {
+    setIsUserMenuOpen(false);
     await logout();
     navigate('/login');
   };
 
-  const navItems = [
-    {
-      label: 'Dashboard',
-      fullLabel: 'Dashboard General',
-      path: '/dashboard',
-      icon: LayoutDashboard,
-    },
-    {
-      label: 'Convocatorias',
-      fullLabel: 'Catálogo de Convocatorias',
-      path: '/projects',
-      icon: FolderKanban,
-    },
-    {
-      label: 'Candidatos',
-      fullLabel: 'Candidatos Postulados',
-      path: '/candidates',
-      icon: Users,
-    },
-    {
-      label: 'Hitos',
-      fullLabel: 'Tablero de Hitos y Pagos',
-      path: '/contracts',
-      icon: CheckCircle2,
-    },
-    {
-      label: 'Pagos',
-      fullLabel: 'Métodos de Pago y Tarjetas',
-      path: '/payment-methods',
-      icon: CreditCard,
-    },
-  ];
+  const handleOpenChatDrawer = () => {
+    loadConversations();
+    if (conversations.length > 0) {
+      const firstConv = conversations[0];
+      openDrawer({
+        conversationId: firstConv.id,
+        projectId: firstConv.projectId ?? null,
+        projectName: firstConv.projectName ?? null,
+        peerName: firstConv.peerName ?? null,
+      });
+    } else {
+      openDrawer({
+        conversationId: null,
+        projectId: null,
+        projectName: null,
+        peerName: null,
+      });
+    }
+  };
+
+  const navLinkClass = (active) =>
+    `flex flex-col items-center justify-center text-[11px] py-1 px-2 border-b-2 transition shrink-0 ${
+      active
+        ? 'text-[#8C2C45] border-[#8C2C45] font-bold'
+        : 'text-[#5A0F24]/70 hover:text-[#5A0F24] border-transparent font-semibold'
+    }`;
+
+  const isDashboard =
+    location.pathname === '/dashboard' ||
+    location.pathname === '/social' ||
+    location.pathname === '/client-dashboard';
+  const isNetwork =
+    location.pathname === '/network' || location.pathname === '/onboarding';
+  const isProjects =
+    location.pathname === '/projects' ||
+    location.pathname === '/feed' ||
+    location.pathname.startsWith('/projects/');
+  const isMyProposals =
+    location.pathname === '/my-proposals' ||
+    location.pathname === '/postulations';
+  const isCandidates =
+    location.pathname === '/candidates' ||
+    location.pathname.includes('/candidates');
+  const isContracts =
+    location.pathname === '/contracts' ||
+    location.pathname.startsWith('/contracts/') ||
+    location.pathname === '/kanban';
+  const isPayments =
+    location.pathname === '/payment-methods' ||
+    location.pathname === '/payments' ||
+    location.pathname === '/cards';
+  const isMessages =
+    location.pathname === '/messages' ||
+    location.pathname.startsWith('/messages/');
+
+  const defaultPlaceholder = isClient
+    ? 'Buscar convocatorias o candidatos...'
+    : 'Buscar...';
 
   return (
-    <div className="min-h-screen bg-[#f6f2ee] text-[#2b1b1e] flex flex-col justify-between selection:bg-[#8C2C45]/20 selection:text-[#5A0F24] overflow-x-hidden">
-      {/* Top Navbar Principal para Clientes */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#C9B8A6]/50 shadow-[0_4px_20px_-10px_rgba(90,15,36,0.08)]">
-        <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-18 flex items-center justify-between gap-2 sm:gap-3">
-          {/* Left: Brand + Navigation Links */}
-          <div className="flex items-center gap-3 xl:gap-5 min-w-0">
-            <Link
-              to="/dashboard"
-              className="flex items-center gap-2 group focus:outline-none shrink-0"
-            >
-              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#5A0F24] rounded-2xl flex items-center justify-center shadow-[0_6px_16px_rgba(90,15,36,0.25)] group-hover:scale-105 transition-transform shrink-0">
-                <span className="font-black text-sm tracking-tighter text-[#F3EFE6]">
-                  F<span className="text-[#C68A8F]">H</span>
-                </span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm sm:text-base md:text-lg font-extrabold tracking-tight text-[#5A0F24] leading-none">
-                  Freelance
-                </span>
-                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-[#8C2C45] mt-0.5">
-                  Portal Clientes
-                </span>
+    <div className="min-h-screen bg-[#f6f2ee] text-[#2b1b1e] font-sans antialiased">
+      {/* NAVBAR SUPERIOR UNIFICADO (ESTILO FREELANCER WINE & CREAM) */}
+      <header className="sticky top-0 z-40 bg-white border-b border-[#C9B8A6]/40 shadow-xs">
+        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
+          {/* Logo y Buscador */}
+          <div className="flex items-center gap-3 flex-1 max-w-md min-w-0">
+            <Link to="/dashboard" className="flex items-center gap-2 group shrink-0">
+              <div className="w-9 h-9 rounded-lg bg-[#8C2C45] flex items-center justify-center text-white font-black text-xl shadow-xs group-hover:bg-[#5A0F24] transition">
+                FH
               </div>
             </Link>
 
-            {/* Desktop Menu Links */}
-            <nav
-              aria-label="Menú Principal"
-              className="hidden md:flex items-center gap-1 xl:gap-1.5 pl-3 xl:pl-4 border-l border-[#C9B8A6]/40 min-w-0"
-            >
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive =
-                  location.pathname === item.path ||
-                  (item.path === '/projects' &&
-                    location.pathname.startsWith('/projects') &&
-                    location.pathname !== '/projects/new');
-
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    title={item.fullLabel}
-                    className={`px-2.5 xl:px-3.5 py-1.5 xl:py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 ${
-                      isActive
-                        ? 'bg-[#F3EFE6] text-[#5A0F24] border border-[#C68A8F]/50 shadow-2xs'
-                        : 'text-[#5A0F24]/70 hover:text-[#5A0F24] hover:bg-[#F3EFE6]/50'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5 xl:w-4 xl:h-4 text-[#8C2C45] shrink-0" />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </nav>
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#C9B8A6]" />
+              <input
+                type="text"
+                value={localSearch}
+                onChange={handleSearchInput}
+                onKeyDown={handleSearchKeyDown}
+                placeholder={searchPlaceholder || defaultPlaceholder}
+                className="w-full bg-[#F3EFE6] text-sm text-[#2b1b1e] placeholder-[#5A0F24]/50 rounded-lg pl-9 pr-4 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#8C2C45] focus:bg-white transition border border-[#C9B8A6]/30"
+              />
+            </div>
           </div>
 
-          {/* Right: Botón "+ Nueva Convocatoria" + Avatar/Nombre */}
-          <div className="flex items-center gap-2 sm:gap-2.5 lg:gap-3 shrink-0">
-            {/* Botón Visible: + Nueva Convocatoria */}
-            <Link
-              to="/projects/new"
-              data-testid="btn-nueva-convocatoria"
-              className="py-2 px-2.5 sm:py-2.5 sm:px-3.5 xl:px-4 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] active:bg-[#481a27] text-white text-xs sm:text-sm font-bold shadow-[0_6px_20px_-4px_rgba(140,44,69,0.4)] transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span className="hidden sm:inline lg:hidden xl:inline">Nueva Convocatoria</span>
-              <span className="sm:hidden lg:inline xl:hidden">Convocatoria</span>
-            </Link>
+          {/* Menú de Navegación estático según rol */}
+          <nav aria-label="Menú Principal" className="flex items-center gap-1 sm:gap-5 shrink-0">
+            {isClient ? (
+              <>
+                <Link to="/dashboard" className={navLinkClass(isDashboard)}>
+                  <Home className="w-5 h-5 mb-0.5" />
+                  <span>Inicio</span>
+                </Link>
+                <Link to="/projects" className={navLinkClass(isProjects)}>
+                  <Briefcase className="w-5 h-5 mb-0.5" />
+                  <span>Convocatorias</span>
+                </Link>
+                <Link to="/candidates" className={navLinkClass(isCandidates)}>
+                  <Users className="w-5 h-5 mb-0.5" />
+                  <span className="hidden sm:inline">Candidatos</span>
+                </Link>
+                <Link to="/contracts" className={navLinkClass(isContracts)}>
+                  <CheckCircle2 className="w-5 h-5 mb-0.5" />
+                  <span className="hidden sm:inline">Hitos</span>
+                </Link>
+                <Link to="/payment-methods" className={navLinkClass(isPayments)}>
+                  <CreditCard className="w-5 h-5 mb-0.5" />
+                  <span className="hidden md:inline">Pagos</span>
+                </Link>
+                <Link to="/messages" className={navLinkClass(isMessages)}>
+                  <MessageSquare className="w-5 h-5 mb-0.5" />
+                  <span className="hidden md:inline">Mensajes</span>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link to="/dashboard" className={navLinkClass(isDashboard)}>
+                  <Home className="w-5 h-5 mb-0.5" />
+                  <span>Inicio</span>
+                </Link>
+                <Link to="/network" className={navLinkClass(isNetwork)}>
+                  <Users className="w-5 h-5 mb-0.5" />
+                  <span className="hidden sm:inline">Mi red</span>
+                </Link>
+                <Link to="/projects" className={navLinkClass(isProjects)}>
+                  <Briefcase className="w-5 h-5 mb-0.5" />
+                  <span>Proyectos</span>
+                </Link>
+                <Link
+                  to="/my-proposals"
+                  data-testid="nav-mis-postulaciones"
+                  className={navLinkClass(isMyProposals)}
+                >
+                  <FileCheck2 className="w-5 h-5 mb-0.5" />
+                  <span className="hidden sm:inline">Postulaciones</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleOpenChatDrawer}
+                  className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition cursor-pointer shrink-0"
+                >
+                  <MessageSquare className="w-5 h-5 mb-0.5" />
+                  <span className="hidden md:inline">Mensajes</span>
+                </button>
+                <button
+                  type="button"
+                  className="hidden sm:flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition cursor-pointer shrink-0"
+                >
+                  <Bell className="w-5 h-5 mb-0.5" />
+                  <span className="hidden md:inline">Avisos</span>
+                </button>
+              </>
+            )}
 
-            {/* Perfil del Cliente: Avatar + Nombre */}
-            <div className="relative pl-1 sm:pl-2 border-l border-[#C9B8A6]/40 shrink-0">
+            {/* Avatar Dropdown (Yo ▾) */}
+            <div className="relative">
               <button
                 type="button"
-                onClick={() => setShowUserMenu((prev) => !prev)}
+                onClick={() => setIsUserMenuOpen((prev) => !prev)}
                 data-testid="navbar-user-profile"
-                className="flex items-center gap-2 p-1 sm:p-1.5 rounded-2xl hover:bg-[#F3EFE6]/70 transition-colors cursor-pointer"
+                className={`flex flex-col items-center justify-center text-[11px] py-1 px-2 border-b-2 group cursor-pointer transition ${
+                  location.pathname === '/profile'
+                    ? 'text-[#8C2C45] border-[#8C2C45] font-bold'
+                    : 'text-[#5A0F24]/70 hover:text-[#8C2C45] border-transparent font-semibold'
+                }`}
+                title="Cuenta y opciones"
               >
-                <div className="relative shrink-0">
-                  <div
-                    data-testid="navbar-user-avatar"
-                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-[#8C2C45] to-[#5A0F24] text-[#F3EFE6] font-extrabold text-xs flex items-center justify-center shadow-xs border border-[#C68A8F]/40"
-                  >
-                    {getInitials(displayName)}
-                  </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
-                </div>
-
-                <div className="text-left hidden 2xl:block">
-                  <p
-                    data-testid="navbar-user-name"
-                    className="text-xs font-extrabold text-[#5A0F24] leading-tight truncate max-w-[130px]"
-                  >
-                    {displayName}
-                  </p>
-                  <p className="text-[10px] font-semibold text-[#8C2C45] flex items-center gap-1">
-                    <CheckCircle2 className="w-2.5 h-2.5" />
-                    <span>Cliente Activo</span>
-                  </p>
-                </div>
-                <ChevronDown className="w-3.5 h-3.5 text-[#5A0F24]/60 hidden 2xl:block" />
+                <img
+                  src={profileMeta.avatarUrl}
+                  alt="Yo"
+                  className="w-5 h-5 rounded-full object-cover ring-1 ring-[#C9B8A6] group-hover:ring-[#8C2C45]"
+                  onError={(e) => {
+                    e.target.src =
+                      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+                  }}
+                />
+                <span>Yo ▾</span>
               </button>
 
-              {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-60 bg-white rounded-2xl shadow-[0_15px_35px_-10px_rgba(90,15,36,0.2)] border border-[#C9B8A6]/60 p-3 z-50">
-                  <div className="px-3 py-2 border-b border-[#C9B8A6]/30 mb-2">
-                    <p className="text-xs font-extrabold text-[#5A0F24] truncate">
-                      {displayName}
-                    </p>
-                    <p className="text-[11px] text-[#5A0F24]/65 truncate">
-                      {displayEmail}
-                    </p>
+              {isUserMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-[#C9B8A6]/40 p-3 z-50 animate-in fade-in duration-150">
+                  <div className="flex items-center gap-2.5 pb-3 border-b border-[#C9B8A6]/20">
+                    <img
+                      src={profileMeta.avatarUrl}
+                      alt="Yo"
+                      className="w-10 h-10 rounded-full object-cover ring-1 ring-[#C9B8A6]"
+                      onError={(e) => {
+                        e.target.src =
+                          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-bold text-[#5A0F24] truncate">
+                        {currentUser.fullName}
+                      </h4>
+                      <p className="text-[10px] text-[#2b1b1e]/60 truncate">
+                        {profileMeta.professionalTitle ||
+                          (isClient ? 'Cuenta Cliente' : 'Freelancer')}
+                      </p>
+                    </div>
                   </div>
 
                   <Link
-                    to="/onboarding"
-                    onClick={() => setShowUserMenu(false)}
-                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold text-[#5A0F24] hover:bg-[#F3EFE6] flex items-center gap-2 transition-colors"
+                    to="/profile"
+                    onClick={() => setIsUserMenuOpen(false)}
+                    className="mt-2.5 block w-full text-center py-1.5 px-3 rounded-xl border border-[#8C2C45] text-[#8C2C45] hover:bg-[#F3EFE6] text-xs font-bold transition"
                   >
-                    <User className="w-3.5 h-3.5 text-[#8C2C45]" />
-                    <span>Mi Onboarding / Perfil</span>
+                    Ver perfil
                   </Link>
 
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="w-full mt-1 px-3 py-2 rounded-xl text-xs font-semibold text-[#8C2C45] hover:bg-red-50 flex items-center gap-2 transition-colors cursor-pointer"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Cerrar Sesión</span>
-                  </button>
+                  {isClient ? (
+                    <Link
+                      to="/projects/new"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      data-testid="btn-nueva-convocatoria"
+                      className="mt-2 w-full py-1.5 px-3 rounded-xl bg-[#F3EFE6] text-[#5A0F24] hover:bg-[#C68A8F]/20 text-xs font-bold transition flex items-center justify-center gap-1.5"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-[#8C2C45]" />
+                      <span>Nueva convocatoria</span>
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/my-proposals"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="mt-2 block w-full text-center py-1.5 px-3 rounded-xl bg-[#F3EFE6] text-[#5A0F24] hover:bg-[#C68A8F]/20 text-xs font-bold transition"
+                    >
+                      Mis postulaciones
+                    </Link>
+                  )}
+
+                  <div className="pt-2 mt-2 border-t border-[#C9B8A6]/20">
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-xs font-bold text-red-700 hover:bg-red-50 transition cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4 text-red-600" />
+                      <span>Cerrar sesión</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
-          </div>
-        </div>
-
-        {/* Mobile Quick Navigation Bar con scroll horizontal limpio sin desborde */}
-        <div className="flex md:hidden items-center px-3 sm:px-4 py-2 bg-[#F3EFE6]/90 backdrop-blur-md border-t border-[#C9B8A6]/30 text-xs">
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth py-0.5 w-full min-w-0">
-            {navItems.map((item) => {
-              const isActive =
-                location.pathname === item.path ||
-                (item.path === '/projects' &&
-                  location.pathname.startsWith('/projects') &&
-                  location.pathname !== '/projects/new');
-
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`px-2.5 py-1 rounded-lg font-bold shrink-0 transition-colors ${
-                    isActive
-                      ? 'bg-[#8C2C45] text-white shadow-2xs'
-                      : 'text-[#5A0F24]/80 hover:bg-[#C9B8A6]/20'
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </div>
+          </nav>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="w-full max-w-7xl mx-auto flex-1 px-4 sm:px-6 lg:px-8 py-8">
-        {children}
-      </main>
+      <main className="max-w-6xl mx-auto px-4 py-6">{children}</main>
 
-      {/* Footer consistente con AuthLayout */}
-      <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 border-t border-[#ece3de]/80 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-[#9a868a]">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-3.5 h-3.5 text-[#8C2C45]" />
-          <span>© 2026 Freelance Hub • Pagos protegidos con custodia Escrow</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Sparkles className="w-3 h-3 text-[#C68A8F]" />
-          <span>Talento independiente. Grandes posibilidades.</span>
-        </div>
-      </footer>
+      <ProjectChatDrawer />
     </div>
   );
 }

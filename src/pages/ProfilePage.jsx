@@ -41,6 +41,7 @@ import { useAuthStore } from '../stores/auth.store.js';
 import { profileApi } from '../api/profile.api.js';
 
 import { DEFAULT_AVATAR, resolveAvatarUrl } from '../utils/avatar.js';
+import NotificationsDropdown from '../features/notifications/components/NotificationsDropdown.jsx';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -446,14 +447,14 @@ export default function ProfilePage() {
               <Briefcase className="w-5 h-5 mb-0.5" />
               <span>Proyectos</span>
             </Link>
-            <button className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition cursor-pointer">
+            <button
+              onClick={() => navigate('/messages')}
+              className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition cursor-pointer"
+            >
               <MessageSquare className="w-5 h-5 mb-0.5" />
               <span>Mensajes</span>
             </button>
-            <button className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition cursor-pointer">
-              <Bell className="w-5 h-5 mb-0.5" />
-              <span>Avisos</span>
-            </button>
+            <NotificationsDropdown />
 
             {/* Avatar Dropdown Activo (Yo ▾ con Cerrar sesión) */}
             <div className="relative">

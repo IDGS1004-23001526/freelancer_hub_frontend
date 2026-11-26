@@ -17,6 +17,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/auth.store.js';
+import NotificationsDropdown from '../features/notifications/components/NotificationsDropdown.jsx';
 
 export default function DashboardLayout({ children }) {
   const location = useLocation();
@@ -212,8 +213,10 @@ export default function DashboardLayout({ children }) {
             })}
           </nav>
 
-          {/* Lado Derecho: Menú de Usuario "Yo ▾" con Avatar */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Lado Derecho: Avisos y Menú de Usuario "Yo ▾" con Avatar */}
+          <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
+            <NotificationsDropdown />
+
             <div className="relative shrink-0">
               <button
                 type="button"

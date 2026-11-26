@@ -168,7 +168,7 @@ export default function RegisterForm() {
   };
 
   const handleOAuthRegister = (provider) => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+    const apiUrl = import.meta.env.VITE_API_URL || 'https://api.freelancerhub.org/api';
     window.location.href = `${apiUrl}/v1/auth/${provider}?role=${role}`;
   };
 

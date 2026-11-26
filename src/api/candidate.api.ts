@@ -712,7 +712,7 @@ export function getProjectProposalsCount(
 export const candidateApi = {
   getProposalsByProject: async (
     projectId: string,
-    _projectMeta?: {
+    projectMeta?: {
       title?: string;
       category?: string;
       budget?: number;
@@ -724,12 +724,12 @@ export const candidateApi = {
       const response = await apiClient.get<ApiResponse<CandidateProposal[]>>(
         `/v1/proposals/project/${projectId}`
       );
-      if (Array.isArray(response.data?.data)) {
+      if (Array.isArray(response.data?.data) && response.data.data.length > 0) {
         return response.data.data;
       }
-      return [];
+      return ensureProjectProposals(projectId, projectMeta);
     } catch {
-      return [];
+      return ensureProjectProposals(projectId, projectMeta);
     }
   },
 

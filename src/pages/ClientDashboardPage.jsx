@@ -39,7 +39,9 @@ export default function ClientDashboardPage() {
     return () => clearTimeout(timer);
   }, [searchQuery, selectedCategory, fetchProjects]);
 
-  const displayName = user?.fullName || 'Sofía Ramírez';
+  const isFreelancer = user?.role === 'FREELANCER';
+  const isClient = !isFreelancer;
+  const displayName = user?.fullName || (isClient ? 'Sofía Ramírez' : 'Freelancer');
   const highlightedId = location.state?.newProjectId || null;
   const justCreated = Boolean(location.state?.justCreated);
 
@@ -112,29 +114,34 @@ export default function ClientDashboardPage() {
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F3EFE6] border border-[#C68A8F]/40 mb-3">
                 <Sparkles className="w-3.5 h-3.5 text-[#8C2C45]" />
                 <span className="text-[11px] font-bold text-[#5A0F24] uppercase tracking-wider">
-                  Menú Principal • Panel de Clientes
+                  {isClient ? 'Menú Principal • Panel de Clientes' : 'Menú Principal • Convocatorias Abiertas'}
                 </span>
               </div>
 
               <h1 className="text-2xl md:text-3xl font-extrabold text-[#5A0F24] tracking-tight mb-2">
-                ¡Hola, {displayName}! Gestiona tus convocatorias
+                {isClient
+                  ? `¡Hola, ${displayName}! Gestiona tus convocatorias`
+                  : `¡Hola, ${displayName}! Explora convocatorias disponibles`}
               </h1>
               <p className="text-xs md:text-sm text-[#5A0F24]/75 leading-relaxed">
-                Publica nuevos proyectos, supervisa las convocatorias con estado{' '}
-                <span className="font-bold text-emerald-800">ABIERTO</span> y administra tu saldo protegido en Escrow.
+                {isClient
+                  ? 'Publica nuevos proyectos, supervisa las convocatorias con estado ABIERTO y administra tu saldo protegido en Escrow.'
+                  : 'Postúlate con tu cotización desglosada por hitos, acuerda entregables y recibe pagos protegidos con garantía Escrow.'}
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 shrink-0">
-              <Link
-                to="/projects/new"
-                data-testid="hero-btn-nueva-convocatoria"
-                className="py-3 px-5 rounded-2xl bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-xs md:text-sm font-bold shadow-[0_8px_22px_-4px_rgba(140,44,69,0.4)] transition-all flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span>+ Nueva Convocatoria</span>
-              </Link>
-            </div>
+            {isClient && (
+              <div className="flex flex-wrap items-center gap-3 shrink-0">
+                <Link
+                  to="/projects/new"
+                  data-testid="hero-btn-nueva-convocatoria"
+                  className="py-3 px-5 rounded-2xl bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-xs md:text-sm font-bold shadow-[0_8px_22px_-4px_rgba(140,44,69,0.4)] transition-all flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
+                  <span>+ Nueva Convocatoria</span>
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* KPI Metric Cards */}
@@ -284,17 +291,21 @@ export default function ClientDashboardPage() {
                 No se encontraron convocatorias con esos filtros
               </h3>
               <p className="text-xs text-[#5A0F24]/70 max-w-md mx-auto">
-                Intenta limpiar tu búsqueda o publica una nueva convocatoria para conectar con especialistas.
+                {isClient
+                  ? 'Intenta limpiar tu búsqueda o publica una nueva convocatoria para conectar con especialistas.'
+                  : 'Intenta limpiar tu búsqueda o selecciona otra categoría para ver convocatorias disponibles.'}
               </p>
-              <div className="pt-2">
-                <Link
-                  to="/projects/new"
-                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-xs font-bold transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>+ Nueva Convocatoria</span>
-                </Link>
-              </div>
+              {isClient && (
+                <div className="pt-2">
+                  <Link
+                    to="/projects/new"
+                    className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-xs font-bold transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Nueva Convocatoria</span>
+                  </Link>
+                </div>
+              )}
             </div>
           ) : (
             <div
@@ -320,19 +331,25 @@ export default function ClientDashboardPage() {
             </div>
             <div>
               <h4 className="text-xs md:text-sm font-extrabold text-[#5A0F24]">
-                Protección Total para Clientes con Custodia Escrow
+                {isClient
+                  ? 'Protección Total para Clientes con Custodia Escrow'
+                  : 'Garantía de Cobro Protegido mediante Custodia Escrow'}
               </h4>
               <p className="text-xs text-[#5A0F24]/75">
-                Los fondos de tus convocatorias se liberan únicamente cuando apruebas los entregables acordados.
+                {isClient
+                  ? 'Los fondos de tus convocatorias se liberan únicamente cuando apruebas los entregables acordados.'
+                  : 'El cliente resguarda el 100% de los fondos en garantía antes de que comiences a trabajar.'}
               </p>
             </div>
           </div>
-          <Link
-            to="/projects/new"
-            className="text-xs font-extrabold text-[#8C2C45] hover:text-[#5A0F24] underline shrink-0"
-          >
-            Publicar proyecto ahora →
-          </Link>
+          {isClient && (
+            <Link
+              to="/projects/new"
+              className="text-xs font-extrabold text-[#8C2C45] hover:text-[#5A0F24] underline shrink-0"
+            >
+              Publicar proyecto ahora →
+            </Link>
+          )}
         </section>
       </div>
     </DashboardLayout>

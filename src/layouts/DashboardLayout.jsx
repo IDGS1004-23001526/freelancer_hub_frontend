@@ -212,31 +212,9 @@ export default function DashboardLayout({ children }) {
             })}
           </nav>
 
-          {/* Lado Derecho: Botón de Acción según Rol + Dropdown "Yo ▾" */}
+          {/* Lado Derecho: Menú de Usuario "Yo ▾" con Avatar */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {isClient ? (
-              <Link
-                to="/projects/new"
-                data-testid="btn-nueva-convocatoria"
-                className="py-1.5 px-2.5 sm:py-2 sm:px-3.5 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] active:bg-[#481a27] text-white text-xs font-bold shadow-[0_4px_14px_rgba(140,44,69,0.35)] transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
-              >
-                <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span className="hidden sm:inline">Nueva Convocatoria</span>
-                <span className="sm:hidden">Nueva</span>
-              </Link>
-            ) : (
-              <Link
-                to="/projects"
-                className="py-1.5 px-2.5 sm:py-2 sm:px-3.5 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] active:bg-[#481a27] text-white text-xs font-bold shadow-[0_4px_14px_rgba(140,44,69,0.35)] transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
-              >
-                <Briefcase className="w-4 h-4" />
-                <span className="hidden sm:inline">Explorar Convocatorias</span>
-                <span className="sm:hidden">Explorar</span>
-              </Link>
-            )}
-
-            {/* Menú de Usuario Yo ▾ con Avatar */}
-            <div className="relative pl-1 sm:pl-2 border-l border-[#C9B8A6]/40 shrink-0">
+            <div className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => setShowUserMenu((prev) => !prev)}

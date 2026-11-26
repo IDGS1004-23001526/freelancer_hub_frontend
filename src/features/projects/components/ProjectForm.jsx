@@ -247,6 +247,15 @@ export default function ProjectForm({ onValidationChange }) {
       return;
     }
 
+    if (user?.role === 'FREELANCER') {
+      setToast({
+        type: 'error',
+        title: 'Acción no permitida',
+        message: 'Solo los usuarios con rol de Cliente tienen permisos para crear convocatorias.',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     const isoEstimatedDate = estimatedDate.includes('T')

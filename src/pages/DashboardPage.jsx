@@ -326,26 +326,6 @@ export default function DashboardPage() {
               <span>Avisos</span>
             </button>
 
-            {/* Botón de Acción según Rol */}
-            {isClient ? (
-              <Link
-                to="/projects/new"
-                data-testid="btn-nueva-convocatoria"
-                className="hidden sm:inline-flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] active:bg-[#481a27] text-white text-xs font-bold shadow-[0_4px_14px_rgba(140,44,69,0.35)] transition-all shrink-0 cursor-pointer"
-              >
-                <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span>+ Convocatoria</span>
-              </Link>
-            ) : (
-              <Link
-                to="/projects"
-                className="hidden sm:inline-flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] active:bg-[#481a27] text-white text-xs font-bold shadow-[0_4px_14px_rgba(140,44,69,0.35)] transition-all shrink-0 cursor-pointer"
-              >
-                <Briefcase className="w-4 h-4" />
-                <span>Explorar Proyectos</span>
-              </Link>
-            )}
-
             {/* Avatar Dropdown (Yo ▾ con Cerrar sesión) */}
             <div className="relative">
               <button

@@ -15,9 +15,21 @@ The React Compiler is not enabled on this template because of its impact on dev 
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
 
-## Pruebas E2E (Playwright)
+## Pruebas E2E (Playwright) y Disponibilidad
 
-Las pruebas end-to-end verifican los flujos principales (`auth-flow`, `convocatoria-flow`, `core-business-flow`, `full-system-test`, `submit-proposal`) y generan logs estructurados y reportes en `playwright-report/`.
+Las pruebas end-to-end verifican la disponibilidad y funcionalidad completa de los flujos de usuario en navegador real, generando logs estructurados (`[TIMESTAMP] [LEVEL] [CONTEXT] [ACTION] (STATUS)`) y reportes HTML/trazas en `playwright-report/`.
+
+### Suites automatizadas
+
+| Suite | Archivo | Qué valida |
+| :--- | :--- | :--- |
+| Autenticación | `e2e/auth-flow.spec.ts` | Registro, inicio de sesión, validaciones y redirección |
+| Convocatorias | `e2e/convocatoria-flow.spec.ts` | Creación, listado y validación de proyectos |
+| Flujo central | `e2e/core-business-flow.spec.ts` | Ciclo completo: publicar proyecto, postular, comparar candidatos y contratar |
+| Postulaciones | `e2e/submit-proposal.spec.ts` | Envío de propuesta económica y desglose por hitos |
+| Sistema completo | `e2e/full-system-test.spec.ts` | Integración general entre módulos principales y chat |
+
+### Ejecución
 
 ```bash
 # Instalar navegadores (solo la primera vez)
@@ -28,4 +40,10 @@ pnpm exec playwright test
 
 # Ejecutar solo el flujo principal de negocio
 pnpm exec playwright test e2e/core-business-flow.spec.ts
+```
+
+Para verificar la disponibilidad y latencia de los endpoints en producción/local con salida en `logs/availability.log`, ejecuta desde `freelancer_hub_backend`:
+
+```bash
+pnpm run test:availability
 ```

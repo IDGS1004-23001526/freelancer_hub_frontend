@@ -90,7 +90,7 @@ export default function CandidateComparisonTable({
                   <td className="p-4 align-middle whitespace-nowrap">
                     <div className="inline-flex items-center gap-1 font-extrabold text-[#5A0F24]">
                       <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      <span>{candidate.reputation.toFixed(1)}</span>
+                      <span>{(Number(candidate.reputation) || 5.0).toFixed(1)}</span>
                     </div>
                   </td>
 

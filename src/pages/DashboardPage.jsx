@@ -23,6 +23,7 @@ import {
   Plus,
   Building2,
   Check,
+  CheckCircle2,
   ChevronDown,
   Info,
   ExternalLink,
@@ -50,6 +51,10 @@ export default function DashboardPage() {
     email: '',
     role: 'FREELANCER',
   };
+
+  const isClient = currentUser.role === 'CLIENT' || currentUser.role === 'CLIENTE';
+  const portalBadge = isClient ? 'Portal Clientes' : 'Portal Freelancer';
+  const roleStatusText = isClient ? 'Cliente Activo' : 'Freelancer Activo';
 
   // State del perfil para la tarjeta izquierda
   const [profileData, setProfileData] = useState({
@@ -233,13 +238,26 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#f6f2ee] text-[#2b1b1e] font-sans antialiased">
       {/* NAVBAR SUPERIOR ESTILO LINKEDIN (PALETA WINE & CREAM) */}
-      <header className="sticky top-0 z-40 bg-white border-b border-[#C9B8A6]/40 shadow-xs">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-          {/* Logo y Buscador */}
-          <div className="flex items-center gap-3 flex-1 max-w-md">
-            <Link to="/dashboard" className="flex items-center gap-2 group">
-              <div className="w-9 h-9 rounded-lg bg-[#8C2C45] flex items-center justify-center text-white font-black text-xl shadow-xs group-hover:bg-[#5A0F24] transition">
-                FH
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#C9B8A6]/40 shadow-xs">
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+          {/* Logo Completo y Buscador */}
+          <div className="flex items-center gap-3 flex-1 max-w-md min-w-0">
+            <Link
+              to="/dashboard"
+              className="flex items-center gap-2.5 group focus:outline-none shrink-0"
+            >
+              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#5A0F24] rounded-2xl flex items-center justify-center shadow-[0_4px_12px_rgba(90,15,36,0.25)] group-hover:scale-105 transition-transform shrink-0">
+                <span className="font-black text-sm tracking-tighter text-[#F3EFE6]">
+                  F<span className="text-[#C68A8F]">H</span>
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm sm:text-base md:text-lg font-extrabold tracking-tight text-[#5A0F24] leading-none">
+                  Freelance
+                </span>
+                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-[#8C2C45] mt-0.5">
+                  {portalBadge}
+                </span>
               </div>
             </Link>
 
@@ -248,13 +266,22 @@ export default function DashboardPage() {
               <input
                 type="text"
                 placeholder="Buscar..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.target.value.trim()) {
+                    navigate(
+                      `/projects?search=${encodeURIComponent(
+                        e.target.value.trim()
+                      )}`
+                    );
+                  }
+                }}
                 className="w-full bg-[#F3EFE6] text-sm text-[#2b1b1e] placeholder-[#5A0F24]/50 rounded-lg pl-9 pr-4 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#8C2C45] focus:bg-white transition border border-[#C9B8A6]/30"
               />
             </div>
           </div>
 
           {/* Menú de Navegación Limpio */}
-          <nav className="flex items-center gap-1 sm:gap-6">
+          <nav className="flex items-center gap-1 sm:gap-4 lg:gap-6">
             <Link
               to="/dashboard"
               className="flex flex-col items-center justify-center text-[#8C2C45] border-b-2 border-[#8C2C45] text-[11px] font-bold py-1 px-2"
@@ -270,11 +297,18 @@ export default function DashboardPage() {
               <span>Mi red</span>
             </Link>
             <Link
-              to="/dashboard"
+              to="/projects"
               className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition"
             >
               <Briefcase className="w-5 h-5 mb-0.5" />
               <span>Proyectos</span>
+            </Link>
+            <Link
+              to="/contracts"
+              className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition"
+            >
+              <CheckCircle2 className="w-5 h-5 mb-0.5" />
+              <span>Hitos</span>
             </Link>
             <button
               type="button"
@@ -292,6 +326,26 @@ export default function DashboardPage() {
               <span>Avisos</span>
             </button>
 
+            {/* Botón de Acción según Rol */}
+            {isClient ? (
+              <Link
+                to="/projects/new"
+                data-testid="btn-nueva-convocatoria"
+                className="hidden sm:inline-flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] active:bg-[#481a27] text-white text-xs font-bold shadow-[0_4px_14px_rgba(140,44,69,0.35)] transition-all shrink-0 cursor-pointer"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span>+ Convocatoria</span>
+              </Link>
+            ) : (
+              <Link
+                to="/projects"
+                className="hidden sm:inline-flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] active:bg-[#481a27] text-white text-xs font-bold shadow-[0_4px_14px_rgba(140,44,69,0.35)] transition-all shrink-0 cursor-pointer"
+              >
+                <Briefcase className="w-4 h-4" />
+                <span>Explorar Proyectos</span>
+              </Link>
+            )}
+
             {/* Avatar Dropdown (Yo ▾ con Cerrar sesión) */}
             <div className="relative">
               <button
@@ -305,10 +359,14 @@ export default function DashboardPage() {
                   alt="Yo"
                   className="w-5 h-5 rounded-full object-cover ring-1 ring-[#C9B8A6] group-hover:ring-[#8C2C45]"
                   onError={(e) => {
-                    e.target.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+                    e.target.src =
+                      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
                   }}
                 />
-                <span>Yo ▾</span>
+                <span className="flex items-center gap-0.5 text-[10px] leading-tight mt-0.5">
+                  <span>Yo</span>
+                  <ChevronDown className="w-2.5 h-2.5" />
+                </span>
               </button>
 
               {/* Menú desplegable */}

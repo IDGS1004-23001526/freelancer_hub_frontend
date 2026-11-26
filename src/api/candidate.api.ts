@@ -724,12 +724,12 @@ export const candidateApi = {
       const response = await apiClient.get<ApiResponse<CandidateProposal[]>>(
         `/v1/proposals/project/${projectId}`
       );
-      if (Array.isArray(response.data?.data) && response.data.data.length > 0) {
+      if (Array.isArray(response.data?.data)) {
         return response.data.data;
       }
-      return ensureProjectProposals(projectId, projectMeta);
+      return [];
     } catch {
-      return ensureProjectProposals(projectId, projectMeta);
+      return [];
     }
   },
 

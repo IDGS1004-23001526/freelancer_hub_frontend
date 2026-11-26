@@ -201,9 +201,11 @@ export default function ContractFundingPage() {
     async function loadData() {
       setLoading(true);
       try {
-        const contractId = id || 'ctr_draft_101';
+        if (!id) {
+          throw new Error('Falta el identificador del contrato.');
+        }
         const [loadedContract, cards] = await Promise.all([
-          contractApi.getContractById(contractId),
+          contractApi.getContractById(id),
           paymentApi.getPaymentMethods(),
         ]);
 
@@ -224,7 +226,7 @@ export default function ContractFundingPage() {
           setToast({
             type: 'error',
             title: 'Error al cargar',
-            message: 'No se pudo obtener el contrato. Mostrando datos locales.',
+            message: err?.response?.data?.message || err?.message || 'No se pudo obtener el contrato.',
           });
         }
       } finally {
@@ -290,10 +292,16 @@ export default function ContractFundingPage() {
           ? 'wallet'
           : 'card';
 
-      const cardLast4 =
-        paymentType === 'saved_card' && selectedCard
-          ? selectedCard.last4
-          : '4829';
+      if (methodLabel === 'card' && !selectedCard) {
+        setToast({
+          type: 'error',
+          title: 'Selecciona una tarjeta',
+          message: 'Registra o elige una tarjeta antes de fondear el contrato.',
+        });
+        return;
+      }
+
+      const cardLast4 = methodLabel === 'card' ? selectedCard.last4 : undefined;
 
       const result = await contractApi.fundContract(contract.id, {
         paymentMethod: methodLabel,
@@ -314,7 +322,8 @@ export default function ContractFundingPage() {
       setToast({
         type: 'error',
         title: 'Error al procesar fondeo',
-        message: 'No fue posible completar la retención en custodia Escrow.',
+        message:
+          err?.response?.data?.message || 'No fue posible completar la retención en custodia Escrow.',
       });
     } finally {
       setIsProcessing(false);

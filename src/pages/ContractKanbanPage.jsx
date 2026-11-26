@@ -73,8 +73,16 @@ export default function ContractKanbanPage() {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
+  const showApiError = (title, err) => {
+    setToast({
+      type: 'error',
+      title,
+      message: err?.response?.data?.message || err?.message || 'Inténtalo de nuevo.',
+    });
+  };
+
   useEffect(() => {
-    loadContracts(id);
+    loadContracts(id).catch((err) => showApiError('No se pudieron cargar los contratos', err));
   }, [id, loadContracts]);
 
   const activeContract = useMemo(
@@ -136,12 +144,18 @@ export default function ContractKanbanPage() {
   const handleStatusChange = async (milestone, nextStatus, notes) => {
     if (!activeContract || milestone.status === nextStatus) return;
 
-    const { justCompletedContract } = await moveMilestone(
-      activeContract.id,
-      milestone.id,
-      nextStatus,
-      notes
-    );
+    let justCompletedContract = false;
+    try {
+      ({ justCompletedContract } = await moveMilestone(
+        activeContract.id,
+        milestone.id,
+        nextStatus,
+        notes
+      ));
+    } catch (err) {
+      showApiError('No se pudo actualizar el hito', err);
+      return;
+    }
 
     if (nextStatus === 'APPROVED') {
       setToast({
@@ -190,12 +204,17 @@ export default function ContractKanbanPage() {
 
   const handleReviewSubmit = async (payload) => {
     if (!activeContract) return;
-    const reviewerName = user?.fullName || 'Sofía Ramírez';
-    await submitBlindReview(
-      payload,
-      reviewerName,
-      activeContract.freelancerName
-    );
+    const reviewerName = user?.fullName || 'Tú';
+    try {
+      await submitBlindReview(
+        payload,
+        reviewerName,
+        activeContract.freelancerName
+      );
+    } catch (err) {
+      showApiError('No se pudo guardar la calificación', err);
+      return;
+    }
     setToast({
       type: 'success',
       title: 'Calificación guardada',
@@ -206,7 +225,21 @@ export default function ContractKanbanPage() {
 
   const handleRevealCounterpart = async (contractId) => {
     if (!activeContract) return;
-    await revealCounterpartReview(contractId, activeContract.freelancerName);
+    let review;
+    try {
+      review = await revealCounterpartReview(contractId, activeContract.freelancerName);
+    } catch (err) {
+      showApiError('No se pudo consultar la calificación', err);
+      return;
+    }
+    if (!review?.isCounterpartSubmitted) {
+      setToast({
+        type: 'info',
+        title: 'Aún sin calificación',
+        message: `${activeContract.freelancerName} todavía no ha calificado este proyecto.`,
+      });
+      return;
+    }
     setToast({
       type: 'success',
       title: '¡Ambas calificaciones están listas!',

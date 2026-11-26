@@ -20,7 +20,11 @@ import { useAuthStore } from '../stores/auth.store.js';
 
 export default function ClientDashboardPage() {
   const location = useLocation();
-  const { projects, wallet, loading, fetchProjects } = useProjectStore();
+  const { projects, wallet, loading, fetchProjects, fetchWallet } = useProjectStore();
+
+  useEffect(() => {
+    fetchWallet().catch(() => {});
+  }, [fetchWallet]);
   const { user } = useAuthStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -70,7 +74,7 @@ export default function ClientDashboardPage() {
   const formatMoney = (amount) =>
     new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: wallet.currency || 'USD',
+      currency: wallet.currency || 'MXN',
       maximumFractionDigits: 0,
     }).format(amount);
 

@@ -96,7 +96,9 @@ export const useCandidateStore = create<CandidateComparisonState>((set, get) => 
 
   acceptProposal: async (proposal) => {
     set({ acceptingId: proposal.id });
-    const contract = await candidateApi.acceptProposalAndCreateContract(
+    let contract;
+    try {
+      contract = await candidateApi.acceptProposalAndCreateContract(
       {
         projectId: proposal.projectId,
         proposalId: proposal.id,
@@ -106,11 +108,20 @@ export const useCandidateStore = create<CandidateComparisonState>((set, get) => 
         estimatedDays: proposal.estimatedDays,
       },
       proposal.freelancerName
-    );
+      );
+    } catch (err) {
+      set({ acceptingId: null });
+      throw err;
+    }
 
-    const updatedProposals = get().proposals.map((item) =>
-      item.id === proposal.id ? { ...item, status: 'ACCEPTED' as const } : item
-    );
+    // El backend rechaza automáticamente las demás propuestas PENDING de la convocatoria.
+    const updatedProposals = get().proposals.map((item) => {
+      if (item.id === proposal.id) return { ...item, status: 'ACCEPTED' as const };
+      if (item.projectId === proposal.projectId && item.status === 'PENDING') {
+        return { ...item, status: 'REJECTED' as const };
+      }
+      return item;
+    });
 
     set({
       proposals: updatedProposals,

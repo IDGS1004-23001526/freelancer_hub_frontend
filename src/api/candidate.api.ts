@@ -738,12 +738,22 @@ export const candidateApi = {
     freelancerName: string
   ): Promise<ContractRecord> => {
     try {
-      const response = await apiClient.post<ApiResponse<ContractRecord>>(
-        '/v1/contracts',
-        payload
-      );
-      if (response.data?.data) {
-        return response.data.data;
+      const response = await apiClient.post<ApiResponse<any>>('/v1/contracts', {
+        proposalId: payload.proposalId,
+      });
+      const data = response.data?.data;
+      if (data) {
+        return {
+          id: data.id,
+          projectId: data.projectId ?? payload.projectId,
+          proposalId: data.proposalId ?? payload.proposalId,
+          freelancerId: data.freelancerId ?? payload.freelancerId,
+          freelancerName,
+          totalAmount: Number(data.totalAmount ?? payload.totalAmount),
+          currency: payload.currency,
+          status: data.status ?? 'DRAFT',
+          createdAt: data.createdAt ?? new Date().toISOString(),
+        };
       }
       throw new Error('Local fallback');
     } catch {
@@ -785,30 +795,16 @@ export const candidateApi = {
     }
   },
 
+  /**
+   * Rechaza una propuesta PENDING. El backend no permite revertir un rechazo.
+   */
   updateProposalStatus: async (
     proposalId: string,
     status: 'PENDING' | 'REJECTED'
-  ): Promise<CandidateProposal | null> => {
-    try {
-      const response = await apiClient.patch<ApiResponse<CandidateProposal>>(
-        `/v1/proposals/${proposalId}/status`,
-        { status }
-      );
-      if (response.data?.data) {
-        return response.data.data;
-      }
-      throw new Error('Local fallback');
-    } catch {
-      let updatedProposal: CandidateProposal | null = null;
-      const allProposals = loadStoredProposals().map((item) => {
-        if (item.id === proposalId) {
-          updatedProposal = { ...item, status };
-          return updatedProposal;
-        }
-        return item;
-      });
-      saveStoredProposals(allProposals);
-      return updatedProposal;
+  ): Promise<void> => {
+    if (status !== 'REJECTED') {
+      throw new Error('Una propuesta rechazada no se puede restaurar.');
     }
+    await apiClient.post(`/v1/proposals/${proposalId}/reject`);
   },
 };

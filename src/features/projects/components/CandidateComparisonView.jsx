@@ -135,11 +135,21 @@ export default function CandidateComparisonView({ project }) {
 
   const handleAcceptProposal = async (candidate) => {
     setSelectedCandidateId(candidate.id);
-    const contract = await acceptProposal(candidate, {
-      budget: projectBudget,
-      currency: projectCurrency,
-      skills: projectSkills,
-    });
+    let contract;
+    try {
+      contract = await acceptProposal(candidate, {
+        budget: projectBudget,
+        currency: projectCurrency,
+        skills: projectSkills,
+      });
+    } catch (err) {
+      setToast({
+        type: 'error',
+        title: 'No se pudo aceptar la propuesta',
+        message: err?.response?.data?.message || err?.message || 'Inténtalo de nuevo.',
+      });
+      return;
+    }
 
     setToast({
       type: 'success',
@@ -153,7 +163,16 @@ export default function CandidateComparisonView({ project }) {
 
   const handleToggleRejectProposal = async (candidate) => {
     const nextStatus = candidate.status === 'REJECTED' ? 'PENDING' : 'REJECTED';
-    await updateProposalStatus(candidate.id, nextStatus);
+    try {
+      await updateProposalStatus(candidate.id, nextStatus);
+    } catch (err) {
+      setToast({
+        type: 'error',
+        title: 'No se pudo actualizar la postulación',
+        message: err?.response?.data?.message || err?.message || 'Inténtalo de nuevo.',
+      });
+      return;
+    }
     setToast({
       type: nextStatus === 'REJECTED' ? 'info' : 'success',
       title:

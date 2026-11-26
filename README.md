@@ -14,3 +14,18 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## Pruebas E2E (Playwright)
+
+Las pruebas end-to-end verifican los flujos principales (`auth-flow`, `convocatoria-flow`, `core-business-flow`, `full-system-test`, `submit-proposal`) y generan logs estructurados y reportes en `playwright-report/`.
+
+```bash
+# Instalar navegadores (solo la primera vez)
+pnpm exec playwright install chromium
+
+# Ejecutar toda la suite E2E
+pnpm exec playwright test
+
+# Ejecutar solo el flujo principal de negocio
+pnpm exec playwright test e2e/core-business-flow.spec.ts
+```

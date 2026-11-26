@@ -75,6 +75,53 @@ test.describe('FLH-TEST-E2E: Ciclo Central de Negocio de Punta a Punta (Core Bus
   test('Debe ejecutar con éxito el flujo comercial completo (a -> f) con salida 0', async ({ page }) => {
     logStandard('INFO', 'SUITE:E2E', 'START_SUITE', 200, 'Iniciando verificación completa de punta a punta del software...');
 
+    await page.route('**/api/v1/proposals/project/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          statusCode: 200,
+          data: [
+            {
+              id: 'prop_201',
+              projectId: 'proj_101',
+              freelancerId: 'usr_freelancer_mateo',
+              freelancerName: 'Mateo Villalobos',
+              freelancerRole: 'Arquitecto Full-Stack Senior',
+              reputation: 4.9,
+              completedProjects: 14,
+              skills: ['React', 'Node', 'PostgreSQL'],
+              coverLetter: 'Propuesta técnica para plataforma Fintech con custodia Escrow.',
+              totalPrice: 42000,
+              currency: 'USD',
+              estimatedDays: 21,
+              status: 'PENDING',
+              createdAt: new Date().toISOString(),
+              milestones: [
+                {
+                  id: 'ms_201_1',
+                  title: 'Arquitectura y Base de Datos',
+                  description: 'Diseño de esquema y APIs',
+                  amount: 21000,
+                  deliveryDays: 10,
+                  order: 1,
+                },
+                {
+                  id: 'ms_201_2',
+                  title: 'Frontend e Integración Escrow',
+                  description: 'Interfaz y pruebas E2E',
+                  amount: 21000,
+                  deliveryDays: 11,
+                  order: 2,
+                },
+              ],
+            },
+          ],
+        }),
+      });
+    });
+
     // ========================================================================
     // PASO A: Cliente publica convocatoria
     // ========================================================================

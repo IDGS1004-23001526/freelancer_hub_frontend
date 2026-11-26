@@ -114,22 +114,38 @@ export default function OnboardingPage() {
     setIsModalOpen(true);
   };
 
+  const getClientStepsStatus = () => {
+    try {
+      const localProfile = JSON.parse(localStorage.getItem('fh_local_profile') || '{}');
+      const localWallet = JSON.parse(localStorage.getItem('fh_client_wallet') || '{}');
+      const localProjects = JSON.parse(localStorage.getItem('fh_projects_catalog') || '[]');
+      const step1 = Boolean((localProfile?.bio || '').trim() || (localProfile?.professionalTitle || '').trim());
+      const step2 = Boolean(localWallet?.cardLast4);
+      const step3 = Array.isArray(localProjects) && localProjects.length > 0;
+      return [step1, step2, step3];
+    } catch {
+      return [false, false, false];
+    }
+  };
+
+  const clientStepsStatus = isClient ? getClientStepsStatus() : [false, false, false];
+
   const steps = isClient
     ? [
         {
           title: 'Configura el perfil de tu empresa o estudio',
           desc: 'Agrega logotipo, descripción de tu negocio y sitio web.',
-          completed: false,
+          completed: clientStepsStatus[0],
         },
         {
           title: 'Define tus métodos de pago para Escrow',
           desc: 'Garantiza fondos protegidos para tus futuras contrataciones.',
-          completed: false,
+          completed: clientStepsStatus[1],
         },
         {
           title: 'Publica tu primera oferta de proyecto',
           desc: 'Describe los requerimientos y recibe propuestas de expertos.',
-          completed: false,
+          completed: clientStepsStatus[2],
         },
       ]
     : [
@@ -150,7 +166,13 @@ export default function OnboardingPage() {
         },
       ];
 
-  const allCompleted = !isClient && progressData.percentage === 100;
+  const completedCount = isClient
+    ? clientStepsStatus.filter(Boolean).length
+    : (progressData.completedSteps || 0);
+  const progressPercentage = isClient
+    ? Math.round((completedCount / 3) * 100)
+    : progressData.percentage;
+  const allCompleted = progressPercentage === 100;
 
   return (
     <AuthLayout>
@@ -191,25 +213,23 @@ export default function OnboardingPage() {
             </div>
           </div>
 
-          {/* Barra de Progreso del Perfil (Freelancer) */}
-          {!isClient && (
-            <div className="mb-6 p-4 rounded-2xl bg-[#F3EFE6]/50 border border-[#C9B8A6]/40">
-              <div className="flex items-center justify-between text-xs mb-2">
-                <span className="font-bold text-[#5A0F24]">
-                  Progreso de tu Perfil
-                </span>
-                <span className="font-extrabold text-[#8C2C45]">
-                  {progressData.percentage}% ({progressData.completedSteps || 0}/3 completados)
-                </span>
-              </div>
-              <div className="w-full h-2 bg-[#E8DEDA] rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-[#8C2C45] to-[#5A0F24] transition-all duration-500 ease-out"
-                  style={{ width: `${progressData.percentage}%` }}
-                />
-              </div>
+          {/* Barra de Progreso del Perfil */}
+          <div className="mb-6 p-4 rounded-2xl bg-[#F3EFE6]/50 border border-[#C9B8A6]/40">
+            <div className="flex items-center justify-between text-xs mb-2">
+              <span className="font-bold text-[#5A0F24]">
+                Progreso de tu Perfil
+              </span>
+              <span className="font-extrabold text-[#8C2C45]">
+                {progressPercentage}% ({completedCount}/3 completados)
+              </span>
             </div>
-          )}
+            <div className="w-full h-2 bg-[#E8DEDA] rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-[#8C2C45] to-[#5A0F24] transition-all duration-500 ease-out"
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
+          </div>
 
           {/* Step list */}
           <div className="space-y-3 mb-8">
@@ -222,7 +242,14 @@ export default function OnboardingPage() {
               return (
                 <div
                   key={idx}
-                  onClick={() => handleOpenStep(idx + 1)}
+                  onClick={() => {
+                    if (isClient) {
+                      const clientRoutes = ['/profile', '/payment-methods', '/projects/create'];
+                      navigate(clientRoutes[idx] || '/dashboard', { state: { from: '/onboarding' } });
+                    } else {
+                      handleOpenStep(idx + 1);
+                    }
+                  }}
                   className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer group ${
                     isCompleted
                       ? 'border-emerald-300 bg-emerald-50/40 hover:bg-emerald-50/70'

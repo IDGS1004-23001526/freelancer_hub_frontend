@@ -78,3 +78,13 @@ export interface ClientWalletInfo {
   cardBrand: string;
   cardLast4: string;
 }
+
+export interface ProjectFilterParams {
+  search?: string;
+  category?: string;
+  skills?: string[];
+  minBudget?: number;
+  maxBudget?: number;
+  page?: number;
+  limit?: number;
+}

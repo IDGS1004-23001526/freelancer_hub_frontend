@@ -5,83 +5,79 @@ import type {
   ProjectConvocatoria,
   CreateProjectPayload,
   ClientWalletInfo,
+  ProjectFilterParams,
+  ProjectStatus,
 } from '../interfaces/project.interface.js';
 
 const STORAGE_KEY = 'fh_projects_catalog';
 const WALLET_STORAGE_KEY = 'fh_client_wallet';
 
-const INITIAL_PROJECTS: ProjectConvocatoria[] = [
-  {
-    id: 'proj_101',
-    title: 'Plataforma E-Commerce B2B con Pagos en Custodia (Escrow)',
-    category: 'Desarrollo Web',
-    budget: 4500,
-    currency: 'USD',
-    skills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'Tailwind CSS'],
-    estimatedDate: '2026-12-20',
-    description:
-      'Buscamos desarrollar un portal mayorista con pasarela de pagos retenidos en garantía, panel de proveedores en tiempo real y generación automatizada de órdenes de compra.',
-    status: 'ABIERTO',
-    clientName: 'Sofía Ramírez • Estudio Nexus',
-    proposalsCount: 3,
-    createdAt: '2026-11-01T14:30:00.000Z',
-    updatedAt: '2026-11-01T14:30:00.000Z',
-  },
-  {
-    id: 'proj_102',
-    title: 'Rediseño de Sistema de Diseño UI/UX para App Fintech',
-    category: 'Diseño UI/UX',
-    budget: 2800,
-    currency: 'USD',
-    skills: ['Figma', 'UI/UX Design', 'Design Systems', 'Prototyping'],
-    estimatedDate: '2026-12-05',
-    description:
-      'Necesitamos modernizar los flujos de onboarding, billetera digital y transferencias internacionales con componentes accesibles y pruebas de usabilidad.',
-    status: 'ABIERTO',
-    clientName: 'Sofía Ramírez • Estudio Nexus',
-    proposalsCount: 2,
-    createdAt: '2026-10-29T10:15:00.000Z',
-    updatedAt: '2026-10-29T10:15:00.000Z',
-  },
-  {
-    id: 'proj_103',
-    title: 'Arquitectura Microservicios & Pipeline CI/CD en AWS',
-    category: 'DevOps & Cloud',
-    budget: 3600,
-    currency: 'USD',
-    skills: ['AWS', 'Docker', 'Kubernetes', 'Terraform', 'GitHub Actions'],
-    estimatedDate: '2026-12-15',
-    description:
-      'Automatización de despliegues multi-región, monitoreo con Prometheus/Grafana y optimización de costos en contenedores de producción.',
-    status: 'EN_PROGRESO',
-    clientName: 'Sofía Ramírez • Estudio Nexus',
-    proposalsCount: 4,
-    createdAt: '2026-10-20T09:00:00.000Z',
-    updatedAt: '2026-10-25T16:45:00.000Z',
-  },
-];
+const INITIAL_PROJECTS: ProjectConvocatoria[] = [];
 
 const DEFAULT_WALLET: ClientWalletInfo = {
-  balance: 14850.0,
-  escrowLocked: 3600.0,
+  balance: 0,
+  escrowLocked: 0,
   currency: 'USD',
-  cardBrand: 'Visa Corporativa',
-  cardLast4: '4829',
+  cardBrand: '',
+  cardLast4: '',
 };
+
+function normalizeProject(proj: any): ProjectConvocatoria {
+  const statusMap: Record<string, ProjectStatus> = {
+    ACTIVE: 'ABIERTO',
+    ABIERTO: 'ABIERTO',
+    IN_PROGRESS: 'EN_PROGRESO',
+    EN_PROGRESO: 'EN_PROGRESO',
+    COMPLETED: 'COMPLETADO',
+    COMPLETADO: 'COMPLETADO',
+    CANCELLED: 'CANCELADO',
+    CANCELADO: 'CANCELADO',
+  };
+
+  const id = proj.id || `proj_${Date.now()}`;
+  const title = proj.title || '';
+  const category = proj.category || 'Desarrollo Web';
+  const budget = Number(proj.budget) || 0;
+  const currency = proj.currency || 'USD';
+  const skills = Array.isArray(proj.skills) ? proj.skills : [];
+  const status = statusMap[proj.status] || 'ABIERTO';
+
+  return {
+    ...proj,
+    id,
+    title,
+    category,
+    budget,
+    currency,
+    skills,
+    estimatedDate: proj.estimatedDate
+      ? String(proj.estimatedDate).slice(0, 10)
+      : new Date().toISOString().slice(0, 10),
+    description:
+      proj.description ||
+      `Convocatoria para ${title} en ${category}. Habilidades: ${skills.join(', ')}.`,
+    status,
+    clientName: proj.clientName || 'Sofía Ramírez • Cliente Verificado',
+    clientAvatar: proj.clientAvatar || undefined,
+    proposalsCount:
+      typeof proj.proposalsCount === 'number'
+        ? proj.proposalsCount
+        : getProjectProposalsCount(id, {
+            title,
+            category,
+            budget,
+            currency,
+            skills,
+          }),
+    createdAt: proj.createdAt || new Date().toISOString(),
+    updatedAt: proj.updatedAt || proj.createdAt || new Date().toISOString(),
+  };
+}
 
 function syncProjectsProposalsCount(
   list: ProjectConvocatoria[]
 ): ProjectConvocatoria[] {
-  return list.map((proj) => ({
-    ...proj,
-    proposalsCount: getProjectProposalsCount(proj.id, {
-      title: proj.title,
-      category: proj.category,
-      budget: proj.budget,
-      currency: proj.currency,
-      skills: proj.skills,
-    }),
-  }));
+  return list.map((proj) => normalizeProject(proj));
 }
 
 function loadInitialProjects(): ProjectConvocatoria[] {
@@ -90,7 +86,10 @@ function loadInitialProjects(): ProjectConvocatoria[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const synced = syncProjectsProposalsCount(parsed);
+        const withoutSeeds = parsed.filter(
+          (p) => !['proj_101', 'proj_102', 'proj_103'].includes(p.id)
+        );
+        const synced = syncProjectsProposalsCount(withoutSeeds);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(synced));
         return synced;
       }
@@ -107,7 +106,10 @@ function loadInitialWallet(): ClientWalletInfo {
   try {
     const raw = localStorage.getItem(WALLET_STORAGE_KEY);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (parsed && !(parsed.balance === 14850 && parsed.cardLast4 === '4829')) {
+        return parsed;
+      }
     }
   } catch {
     // Fallback
@@ -121,7 +123,7 @@ interface ProjectState {
   wallet: ClientWalletInfo;
   loading: boolean;
   error: string | null;
-  fetchProjects: () => Promise<void>;
+  fetchProjects: (params?: ProjectFilterParams) => Promise<void>;
   createProject: (
     payload: CreateProjectPayload,
     clientName?: string
@@ -137,19 +139,36 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   loading: false,
   error: null,
 
-  fetchProjects: async () => {
+  fetchProjects: async (params?: ProjectFilterParams) => {
     set({ loading: true, error: null });
     try {
-      const response = await projectApi.getProjects();
+      const response = await projectApi.getProjects(params);
       if (response?.data && Array.isArray(response.data)) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(response.data));
-        set({ projects: response.data, loading: false });
+        const normalized = response.data.map(normalizeProject);
+        if (!params?.search && (!params?.category || params.category === 'TODAS')) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+        }
+        set({ projects: normalized, loading: false });
         return;
       }
     } catch {
       // Fallback local
     }
     const localProjects = loadInitialProjects();
+    if (params?.search || (params?.category && params.category !== 'TODAS')) {
+      const filtered = localProjects.filter((p) => {
+        const matchSearch =
+          !params.search ||
+          p.title.toLowerCase().includes(params.search.toLowerCase()) ||
+          p.description.toLowerCase().includes(params.search.toLowerCase()) ||
+          p.skills.some((s) => s.toLowerCase().includes(params.search!.toLowerCase()));
+        const matchCategory =
+          !params.category || params.category === 'TODAS' || p.category === params.category;
+        return matchSearch && matchCategory;
+      });
+      set({ projects: filtered, loading: false });
+      return;
+    }
     set({ projects: localProjects, loading: false });
   },
 

@@ -66,13 +66,16 @@ export default function LoginForm() {
       }, 600);
     } else {
       const rawError = result.error || '';
+      const isNotFound = /no fue encontrado/i.test(rawError);
       const errorMsg = /network error|failed to fetch/i.test(rawError)
         ? 'No se pudo conectar con el servidor. Verifica tu conexión o intenta más tarde.'
-        : rawError || 'Correo o contraseña incorrectos.';
+        : isNotFound
+          ? 'No tienes una cuenta registrada con este correo. Ve a "Regístrate" para crear tu cuenta.'
+          : rawError || 'Correo o contraseña incorrectos.';
       setFeedback({ type: 'error', text: errorMsg });
       setToast({
         type: 'error',
-        title: 'Error al iniciar sesión',
+        title: isNotFound ? 'Cuenta no registrada' : 'Error al iniciar sesión',
         message: errorMsg,
       });
     }
@@ -85,33 +88,22 @@ export default function LoginForm() {
 
     const result = await googleLogin(token, undefined, 'login');
     if (result.success) {
-      let targetPath = '/dashboard';
-      let navState;
-      try {
-        const status = await profileApi.getOnboardingStatus();
-        if (!status?.data?.isFullyCompleted) {
-          targetPath = '/onboarding';
-          navState = {
-            newUser: result.user,
-            role: result.user?.role || 'FREELANCER',
-          };
-        }
-      } catch {
-        // Si falla la consulta de onboarding, continuamos al dashboard
-      }
       setFeedback({ type: 'success', text: `¡Bienvenido, ${result.user.fullName}!` });
       setTimeout(() => {
-        navigate(targetPath, navState ? { state: navState } : undefined);
+        navigate('/dashboard');
       }, 800);
     } else {
       const rawError = result.error || '';
+      const isNotFound = /no fue encontrado/i.test(rawError);
       const errorMsg = /network error|failed to fetch/i.test(rawError)
         ? 'No se pudo conectar con el servidor. Verifica tu conexión o intenta más tarde.'
-        : rawError || 'Correo o contraseña incorrectos.';
+        : isNotFound
+          ? 'No tienes una cuenta registrada con este correo. Ve a "Regístrate" para crear tu cuenta.'
+          : rawError || 'Correo o contraseña incorrectos.';
       setFeedback({ type: 'error', text: errorMsg });
       setToast({
         type: 'error',
-        title: 'Error al iniciar sesión',
+        title: isNotFound ? 'Cuenta no registrada' : 'Error al iniciar sesión',
         message: errorMsg,
       });
     }

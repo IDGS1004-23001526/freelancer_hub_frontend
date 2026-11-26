@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { chatApi } from '../../../api/chat.api.js';
+import { apiClient } from '../../../api/client.js';
+import { useAuthStore } from '../../../stores/auth.store.js';
 import {
   X,
   ExternalLink,
@@ -30,17 +33,17 @@ export function PortfolioModal({ candidate, onClose, onStartChat }) {
             </div>
             <div>
               <h3 className="text-lg font-extrabold tracking-tight">
-                Portafolio de {candidate.freelancerName}
+                Portafolio de {candidate.freelancerName || [candidate.freelancer?.firstName, candidate.freelancer?.lastName].filter(Boolean).join(' ') || 'Freelancer'}
               </h3>
-              <p className="text-xs text-[#F3EFE6]/85">{candidate.freelancerRole}</p>
+              <p className="text-xs text-[#F3EFE6]/85">{candidate.freelancerRole || candidate.freelancer?.professionalTitle || 'Profesional Independiente'}</p>
               <div className="flex items-center gap-3 mt-1 text-[11px] text-[#F3EFE6]/75">
                 <span className="inline-flex items-center gap-1">
                   <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                  {candidate.reputation.toFixed(1)} ({candidate.reviewsCount} reseñas)
+                  {(Number(candidate.reputation) || 5.0).toFixed(1)} ({candidate.reviewsCount || 0} reseñas)
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <MapPin className="w-3 h-3" />
-                  {candidate.freelancerLocation}
+                  {candidate.freelancerLocation || 'Remoto'}
                 </span>
               </div>
             </div>
@@ -136,7 +139,9 @@ export function PortfolioModal({ candidate, onClose, onStartChat }) {
             className="px-4 py-2 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer"
           >
             <MessageSquare className="w-3.5 h-3.5" />
-            <span>Escribir a {candidate.freelancerName.split(' ')[0]}</span>
+            <span>
+              Escribir a {(candidate.freelancerName || candidate.freelancer?.firstName || 'Freelancer').split(' ')[0]}
+            </span>
           </button>
         </div>
       </div>
@@ -145,33 +150,81 @@ export function PortfolioModal({ candidate, onClose, onStartChat }) {
 }
 
 export function QuickChatModal({ candidate, projectTitle, onClose }) {
-  const [messages, setMessages] = useState(() =>
-    candidate
-      ? [
-          {
-            id: 'msg_1',
-            sender: 'freelancer',
-            text: `Hola, gracias por revisar mi propuesta para "${projectTitle}". Quedo atento por si tienes alguna duda sobre los tiempos o las entregas.`,
-            time: 'Hace unos minutos',
-          },
-        ]
-      : []
-  );
+  const { user } = useAuthStore();
+  const [conversationId, setConversationId] = useState(null);
+  const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
+
+  useEffect(() => {
+    const peerId = candidate?.freelancerId || candidate?.freelancer?.id;
+    if (!peerId) return;
+    let active = true;
+    (async () => {
+      try {
+        const conv = await chatApi.createOrFindConversation({
+          peerId,
+          projectId: candidate.projectId || null,
+          projectName: projectTitle || undefined,
+        });
+        if (!active || !conv?.id) return;
+        setConversationId(conv.id);
+        const history = await chatApi.getMessages(conv.id);
+        if (!active) return;
+        setMessages(
+          history.map((m) => ({
+            id: m.id,
+            sender: m.senderId === user?.id ? 'client' : 'freelancer',
+            text: m.content,
+            time: m.createdAt
+              ? new Date(m.createdAt).toLocaleTimeString('es-MX', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : 'Ahora',
+          }))
+        );
+      } catch {
+        // Keep empty if chat fails to load
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [candidate?.freelancerId, candidate?.freelancer?.id, candidate?.projectId, projectTitle, user?.id]);
 
   if (!candidate) return null;
 
-  const handleSend = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault();
-    if (!draft.trim()) return;
-    const userMsg = {
-      id: `msg_${Date.now()}`,
-      sender: 'client',
-      text: draft.trim(),
-      time: 'Ahora',
-    };
-    setMessages((prev) => [...prev, userMsg]);
+    const text = draft.trim();
+    if (!text) return;
+    const tempId = `msg_${Date.now()}`;
+    setMessages((prev) => [
+      ...prev,
+      { id: tempId, sender: 'client', text, time: 'Ahora' },
+    ]);
     setDraft('');
+
+    try {
+      let convId = conversationId;
+      if (!convId) {
+        const peerId = candidate?.freelancerId || candidate?.freelancer?.id;
+        if (peerId) {
+          const conv = await chatApi.createOrFindConversation({
+            peerId,
+            projectId: candidate.projectId || null,
+            projectName: projectTitle || undefined,
+          });
+          convId = conv?.id;
+          if (convId) setConversationId(convId);
+        }
+      }
+      if (convId) {
+        await apiClient.post(`/v1/chats/${convId}/messages`, { content: text });
+      }
+    } catch {
+      // Ignore transient error; message shown optimistically
+    }
   };
 
   return (
@@ -248,7 +301,7 @@ export function QuickChatModal({ candidate, projectTitle, onClose }) {
             type="text"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder={`Escribe un mensaje para ${candidate.freelancerName.split(' ')[0]}...`}
+            placeholder={`Escribe un mensaje para ${(candidate.freelancerName || candidate.freelancer?.firstName || 'Freelancer').split(' ')[0]}...`}
             data-testid="input-chat-message"
             className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#F3EFE6]/60 border border-[#C9B8A6]/60 text-xs text-[#5A0F24] placeholder-[#5A0F24]/45 focus:outline-none focus:border-[#8C2C45]"
           />

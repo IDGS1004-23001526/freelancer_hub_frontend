@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, useLocation, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -15,101 +15,75 @@ import {
   Clock,
   Users,
   Send,
+  Loader2,
 } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout.jsx';
-import FreelancerLayout from '../layouts/FreelancerLayout.jsx';
 import CandidateComparisonView from '../features/projects/components/CandidateComparisonView.jsx';
-import SubmitProposalModal from '../features/projects/components/SubmitProposalModal.jsx';
-import Toast from '../features/ui/Toast.jsx';
 import { useProjectStore } from '../stores/project.store.js';
 import { useAuthStore } from '../stores/auth.store.js';
-import { projectApi } from '../api/project.api.js';
-import { proposalApi } from '../api/proposal.api.js';
+import { apiClient } from '../api/client.js';
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
   const location = useLocation();
   const { getProjectById } = useProjectStore();
   const { user } = useAuthStore();
+  const isClient = user?.role === 'CLIENT';
 
-  const storedProject = location.state?.project || getProjectById(id);
-  const [remoteProject, setRemoteProject] = useState(null);
-  const [loadingProject, setLoadingProject] = useState(!storedProject);
-  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
-  const [submittedProposal, setSubmittedProposal] = useState(null);
-  const [alreadyApplied, setAlreadyApplied] = useState(false);
-  const [proposalRefreshKey, setProposalRefreshKey] = useState(0);
-  const [toast, setToast] = useState(null);
-
-  const project = storedProject || remoteProject;
+  const project = location.state?.project || getProjectById(id);
   const justCreated = Boolean(location.state?.justCreated);
-  const isClient = user?.role === 'CLIENT' || user?.role === 'CLIENTE';
-  const ActiveLayout = isClient ? DashboardLayout : FreelancerLayout;
 
-  useEffect(() => {
-    if (storedProject || !id) {
-      setLoadingProject(false);
-      return;
+  const [coverLetter, setCoverLetter] = useState('');
+  const [totalPrice, setTotalPrice] = useState(project?.budget ? String(project.budget) : '');
+  const [estimatedDays, setEstimatedDays] = useState('14');
+  const [milestoneTitle, setMilestoneTitle] = useState('Entrega completa del proyecto');
+  const [submittingProposal, setSubmittingProposal] = useState(false);
+  const [proposalFeedback, setProposalFeedback] = useState(null);
+
+  const handleSubmitProposal = async (e) => {
+    e.preventDefault();
+    if (!project?.id || submittingProposal) return;
+
+    const priceNum = Number(totalPrice);
+    const daysNum = parseInt(estimatedDays, 10);
+
+    setSubmittingProposal(true);
+    setProposalFeedback(null);
+
+    try {
+      await apiClient.post('/v1/proposals', {
+        projectId: project.id,
+        coverLetter: coverLetter.trim(),
+        totalPrice: priceNum,
+        estimatedDays: daysNum,
+        milestones: [
+          {
+            title: milestoneTitle.trim() || 'Entrega completa del proyecto',
+            amount: priceNum,
+            deliveryDays: daysNum,
+            order: 1,
+          },
+        ],
+      });
+      setProposalFeedback({
+        type: 'success',
+        text: '¡Tu postulación fue enviada exitosamente al cliente!',
+      });
+      setCoverLetter('');
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.errors?.[0]?.message ||
+        'No se pudo enviar tu postulación. Verifica los campos.';
+      setProposalFeedback({ type: 'error', text: msg });
+    } finally {
+      setSubmittingProposal(false);
     }
-
-    let cancelled = false;
-    setLoadingProject(true);
-    projectApi
-      .getProjectById(id)
-      .then((res) => {
-        if (!cancelled && res?.data) {
-          setRemoteProject(res.data);
-        }
-      })
-      .catch(() => {
-        // Mantiene estado de no encontrada si falla la consulta remota
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingProject(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [id, storedProject]);
-
-  useEffect(() => {
-    if (!project?.id) return;
-    let cancelled = false;
-
-    proposalApi
-      .getMyProposalForProject(project.id, user?.id)
-      .then((existing) => {
-        if (cancelled) return;
-        if (existing) {
-          setSubmittedProposal(existing);
-          setAlreadyApplied(true);
-        } else {
-          setSubmittedProposal(null);
-          setAlreadyApplied(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [project?.id, user?.id]);
-
-  if (loadingProject) {
-    return (
-      <ActiveLayout>
-        <div className="max-w-4xl mx-auto bg-white rounded-3xl p-10 border border-[#C9B8A6]/50 animate-pulse space-y-4">
-          <div className="h-6 w-48 bg-[#F3EFE6] rounded-xl" />
-          <div className="h-10 w-3/4 bg-[#F3EFE6] rounded-xl" />
-          <div className="h-28 w-full bg-[#F3EFE6] rounded-2xl" />
-        </div>
-      </ActiveLayout>
-    );
-  }
+  };
 
   if (!project) {
     return (
-      <ActiveLayout>
+      <DashboardLayout>
         <div className="max-w-xl mx-auto bg-white rounded-3xl p-8 text-center border border-[#C9B8A6]/50 space-y-4">
           <h2 className="text-xl font-extrabold text-[#5A0F24]">
             Convocatoria no encontrada
@@ -125,49 +99,19 @@ export default function ProjectDetailPage() {
             <span>Ir al Catálogo de Convocatorias</span>
           </Link>
         </div>
-      </ActiveLayout>
+      </DashboardLayout>
     );
   }
 
-  const isOpen = project.status === 'ABIERTO' || project.status === 'ACTIVE';
+  const isOpen = project.status === 'ABIERTO';
   const formattedBudget = new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: project.currency || 'USD',
     minimumFractionDigits: 2,
   }).format(project.budget);
 
-  const handleProposalSuccess = (proposal) => {
-    setSubmittedProposal(proposal);
-    setAlreadyApplied(true);
-    setProposalRefreshKey((prev) => prev + 1);
-    setToast({
-      type: 'success',
-      title: '¡Propuesta enviada!',
-      message:
-        'Tu propuesta económica y desglose de hitos se han registrado exitosamente.',
-    });
-  };
-
-  const handleAlreadyApplied = (message) => {
-    setAlreadyApplied(true);
-    setToast({
-      type: 'info',
-      title: 'Postulación ya registrada',
-      message: message || 'Ya has enviado una propuesta a este proyecto.',
-    });
-  };
-
   return (
-    <ActiveLayout>
-      {toast && (
-        <Toast
-          type={toast.type}
-          title={toast.title}
-          message={toast.message}
-          onClose={() => setToast(null)}
-        />
-      )}
-
+    <DashboardLayout>
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Top Navigation */}
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -366,43 +310,6 @@ export default function ProjectDetailPage() {
             </div>
           </div>
 
-          {/* Estado de Postulación del Freelancer */}
-          {alreadyApplied ? (
-            <div
-              role="status"
-              data-testid="already-applied-banner"
-              className="relative z-10 p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                  <CheckCircle2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-xs sm:text-sm font-extrabold text-emerald-950">
-                    Ya has enviado una propuesta a este proyecto
-                  </p>
-                  {submittedProposal && (
-                    <p className="text-[11px] text-emerald-900/80">
-                      Oferta registrada por{' '}
-                      <strong>
-                        {new Intl.NumberFormat('es-MX', {
-                          style: 'currency',
-                          currency: 'MXN',
-                        }).format(submittedProposal.totalPrice)}{' '}
-                        MXN
-                      </strong>{' '}
-                      • Plazo de {submittedProposal.estimatedDays} días naturales (
-                      {submittedProposal.milestones?.length || 0} hitos)
-                    </p>
-                  )}
-                </div>
-              </div>
-              <span className="px-3 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold uppercase tracking-wider self-start sm:self-center">
-                Propuesta enviada
-              </span>
-            </div>
-          ) : null}
-
           {/* Acciones inferiores */}
           <div className="relative z-10 pt-5 border-t border-[#C9B8A6]/40 flex flex-col sm:flex-row items-center justify-between gap-3">
             <Link
@@ -413,70 +320,133 @@ export default function ProjectDetailPage() {
               Ir al Catálogo de Proyectos
             </Link>
 
-            <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2.5">
-              {isOpen && !isClient && !alreadyApplied && (
-                <button
-                  type="button"
-                  onClick={() => setIsProposalModalOpen(true)}
-                  data-testid="btn-open-submit-proposal"
-                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-xs font-extrabold shadow-[0_6px_18px_-4px_rgba(140,44,69,0.4)] transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Send className="w-4 h-4" />
-                  <span>Postular Propuesta</span>
-                </button>
-              )}
-
-              {!isClient && alreadyApplied && (
+            {isClient && (
+              <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2.5">
                 <Link
-                  to="/my-proposals"
+                  to={`/projects/${project.id}/candidates`}
+                  data-testid="link-compare-candidates"
                   className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#5A0F24] hover:bg-[#8C2C45] text-[#F3EFE6] text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
                 >
-                  <CheckCircle2 className="w-4 h-4 text-emerald-300" />
-                  <span>Ver mis postulaciones</span>
+                  <Users className="w-4 h-4 text-[#C68A8F]" />
+                  <span>Abrir comparador en pantalla completa</span>
                 </Link>
-              )}
 
-              {isClient && (
-                <>
-                  <Link
-                    to={`/projects/${project.id}/candidates`}
-                    data-testid="link-compare-candidates"
-                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#5A0F24] hover:bg-[#8C2C45] text-[#F3EFE6] text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <Users className="w-4 h-4 text-[#C68A8F]" />
-                    <span>Abrir comparador en pantalla completa</span>
-                  </Link>
-
-                  <Link
-                    to="/projects/new"
-                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#F3EFE6] hover:bg-[#e8dfd1] text-[#5A0F24] border border-[#C9B8A6] text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <Plus className="w-4 h-4 text-[#8C2C45]" />
-                    <span>+ Publicar Otra Convocatoria</span>
-                  </Link>
-                </>
-              )}
-            </div>
+                <Link
+                  to="/projects/new"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Publicar Otra Convocatoria</span>
+                </Link>
+              </div>
+            )}
           </div>
         </article>
 
-        {/* Matriz Comparativa de Candidatos integrada en el detalle (solo Clientes) */}
-        {isClient && (
-          <CandidateComparisonView
-            key={`${project.id}-${proposalRefreshKey}`}
-            project={project}
-          />
+        {/* Matriz Comparativa de Candidatos (solo Cliente) */}
+        {isClient ? (
+          <CandidateComparisonView project={project} />
+        ) : (
+          <section className="bg-white rounded-3xl p-6 md:p-8 shadow-[0_15px_40px_-15px_rgba(90,15,36,0.1)] border border-[#C9B8A6]/50 space-y-5">
+            <div>
+              <h2 className="text-lg font-extrabold text-[#5A0F24]">
+                Postularme a esta convocatoria
+              </h2>
+              <p className="text-xs text-[#5A0F24]/70 mt-1">
+                Envía tu propuesta económica, tiempo estimado y carta de presentación al cliente.
+              </p>
+            </div>
+
+            {proposalFeedback && (
+              <div
+                className={`p-3.5 rounded-xl text-xs font-bold border ${
+                  proposalFeedback.type === 'success'
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                    : 'bg-red-50 border-red-300 text-red-900'
+                }`}
+              >
+                {proposalFeedback.text}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitProposal} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-[#5A0F24] mb-1">
+                    Tu oferta total ({project.currency || 'USD'}) *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={totalPrice}
+                    onChange={(e) => setTotalPrice(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#C9B8A6]/60 text-sm text-[#2b1b1e] focus:ring-2 focus:ring-[#8C2C45] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#5A0F24] mb-1">
+                    Días estimados de entrega *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    required
+                    value={estimatedDays}
+                    onChange={(e) => setEstimatedDays(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#C9B8A6]/60 text-sm text-[#2b1b1e] focus:ring-2 focus:ring-[#8C2C45] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#5A0F24] mb-1">
+                  Hito principal de entrega *
+                </label>
+                <input
+                  type="text"
+                  minLength={5}
+                  required
+                  value={milestoneTitle}
+                  onChange={(e) => setMilestoneTitle(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#C9B8A6]/60 text-sm text-[#2b1b1e] focus:ring-2 focus:ring-[#8C2C45] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#5A0F24] mb-1">
+                  Carta de presentación (mínimo 20 caracteres) *
+                </label>
+                <textarea
+                  rows={4}
+                  minLength={20}
+                  required
+                  value={coverLetter}
+                  onChange={(e) => setCoverLetter(e.target.value)}
+                  placeholder="Describe tu experiencia relevante y cómo abordarás este proyecto..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#C9B8A6]/60 text-sm text-[#2b1b1e] focus:ring-2 focus:ring-[#8C2C45] focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={submittingProposal}
+                  className="px-6 py-2.5 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-xs font-bold flex items-center gap-2 transition cursor-pointer disabled:opacity-60"
+                >
+                  {submittingProposal ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  <span>{submittingProposal ? 'Enviando...' : 'Enviar Postulación'}</span>
+                </button>
+              </div>
+            </form>
+          </section>
         )}
       </div>
-
-      {/* Modal de Postulación de Propuesta Económica (FREEL-45 / HU-03) */}
-      <SubmitProposalModal
-        isOpen={isProposalModalOpen}
-        project={project}
-        onClose={() => setIsProposalModalOpen(false)}
-        onSuccess={handleProposalSuccess}
-        onAlreadyApplied={handleAlreadyApplied}
-      />
-    </ActiveLayout>
+    </DashboardLayout>
   );
 }

@@ -186,22 +186,22 @@ export default function CandidateProposalDetail({
                 </div>
 
                 <p className="text-xs md:text-sm font-bold text-[#8C2C45]">
-                  {candidate.freelancerRole}
+                  {candidate.freelancerRole || candidate.freelancer?.professionalTitle || 'Profesional Independiente'}
                 </p>
 
                 <div className="flex flex-wrap items-center gap-3 pt-1 text-xs text-[#5A0F24]/80">
                   <span className="inline-flex items-center gap-1 font-extrabold text-[#5A0F24] bg-[#F3EFE6] px-2.5 py-1 rounded-lg border border-[#C9B8A6]/50">
                     <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                    {candidate.reputation.toFixed(1)} ({candidate.reviewsCount}{' '}
+                    {(Number(candidate.reputation) || 5.0).toFixed(1)} ({candidate.reviewsCount || 0}{' '}
                     reseñas verificadas)
                   </span>
                   <span className="inline-flex items-center gap-1 font-bold text-[#5A0F24] bg-[#F3EFE6] px-2.5 py-1 rounded-lg border border-[#C9B8A6]/50">
                     <Award className="w-3.5 h-3.5 text-[#8C2C45]" />
-                    {candidate.completedProjects} proyectos completados
+                    {candidate.completedProjects || 0} proyectos completados
                   </span>
                   <span className="inline-flex items-center gap-1 font-semibold text-[#5A0F24]/80">
                     <MapPin className="w-3.5 h-3.5 text-[#8C2C45]" />
-                    {candidate.freelancerLocation}
+                    {candidate.freelancerLocation || 'Remoto'}
                   </span>
                 </div>
               </div>
@@ -301,7 +301,7 @@ export default function CandidateProposalDetail({
                 {score}% de afinidad
               </span>
               <span className="text-[11px] font-semibold text-[#5A0F24]/75 block">
-                {candidate.mcda?.matchedSkills?.length || candidate.skills.length}{' '}
+                {candidate.mcda?.matchedSkills?.length || candidate.skills?.length || 0}{' '}
                 habilidades clave validadas
               </span>
             </div>
@@ -393,10 +393,10 @@ export default function CandidateProposalDetail({
                   {/* Todas las habilidades técnicas del candidato */}
                   <div className="pt-3 border-t border-[#C9B8A6]/40 space-y-2.5">
                     <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#5A0F24] block">
-                      Habilidades técnicas del especialista ({candidate.skills.length})
+                      Habilidades técnicas del especialista ({(candidate.skills || []).length})
                     </span>
                     <div className="flex flex-wrap gap-1.5">
-                      {candidate.skills.map((skill) => {
+                      {(candidate.skills || []).map((skill) => {
                         const isMatched =
                           candidate.mcda?.matchedSkills?.includes(skill);
                         return (
@@ -594,7 +594,9 @@ export default function CandidateProposalDetail({
                 className="py-2.5 px-4 rounded-xl bg-[#F3EFE6] hover:bg-[#e8dfd1] text-[#5A0F24] border border-[#C9B8A6]/60 text-xs font-bold transition-colors inline-flex items-center justify-center gap-2 cursor-pointer"
               >
                 <MessageSquare className="w-4 h-4 text-[#8C2C45]" />
-                <span>Iniciar Chat con {candidate.freelancerName.split(' ')[0]}</span>
+                <span>
+                  Iniciar Chat con {(candidate.freelancerName || candidate.freelancer?.firstName || 'Freelancer').split(' ')[0]}
+                </span>
               </button>
             </div>
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -137,11 +137,13 @@ export default function PaymentMethodsPage() {
         {/* Navegación superior */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
-            to="/dashboard"
+            to={useLocation().state?.from === '/onboarding' ? '/onboarding' : '/dashboard'}
             className="inline-flex items-center gap-2 text-xs font-bold text-[#8C2C45] hover:text-[#5A0F24] transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Volver al inicio</span>
+            <span>
+              {useLocation().state?.from === '/onboarding' ? 'Volver al Onboarding' : 'Volver al inicio'}
+            </span>
           </Link>
         </div>
 

@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
+  Home,
+  Briefcase,
+  MessageSquare,
+  Bell,
   ShieldCheck,
+  Search,
   Image as ImageIcon,
   Video,
   FileText,
@@ -18,19 +23,27 @@ import {
   Plus,
   Building2,
   Check,
+  CheckCircle2,
   ChevronDown,
   Info,
   ExternalLink,
   MapPin,
+  Sparkles,
+  LogOut,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/auth.store.js';
+import { useChatStore } from '../stores/chat.store.js';
 import { profileApi } from '../api/profile.api.js';
-import DashboardLayout from '../layouts/DashboardLayout.jsx';
+import ProjectChatDrawer from '../features/chat/components/ProjectChatDrawer.jsx';
 
-import { resolveAvatarUrl } from '../utils/avatar.js';
+import { DEFAULT_AVATAR, resolveAvatarUrl } from '../utils/avatar.js';
 
 export default function DashboardPage() {
-  const { user } = useAuthStore();
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
+  const { conversations, openDrawer, loadConversations } = useChatStore();
+
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   const currentUser = user || {
     id: '',
@@ -39,11 +52,15 @@ export default function DashboardPage() {
     role: 'FREELANCER',
   };
 
+  const isClient = currentUser.role === 'CLIENT' || currentUser.role === 'CLIENTE';
+  const portalBadge = isClient ? 'Portal Clientes' : 'Portal Freelancer';
+  const roleStatusText = isClient ? 'Cliente Activo' : 'Freelancer Activo';
+
   // State del perfil para la tarjeta izquierda
   const [profileData, setProfileData] = useState({
     professionalTitle: '',
     location: '',
-    avatarUrl: '/avatar-sample.jpg',
+    avatarUrl: DEFAULT_AVATAR,
   });
   const [devNews, setDevNews] = useState([]);
   const [showAllNews, setShowAllNews] = useState(false);
@@ -131,6 +148,31 @@ export default function DashboardPage() {
     },
   ]);
 
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
+  const handleOpenChatDrawer = () => {
+    loadConversations();
+    if (conversations.length > 0) {
+      const firstConv = conversations[0];
+      openDrawer({
+        conversationId: firstConv.id,
+        projectId: firstConv.projectId ?? null,
+        projectName: firstConv.projectName ?? null,
+        peerName: firstConv.peerName ?? null,
+      });
+    } else {
+      openDrawer({
+        conversationId: null,
+        projectId: null,
+        projectName: null,
+        peerName: null,
+      });
+    }
+  };
+
   useEffect(() => {
     fetchUserData();
   }, []);
@@ -194,9 +236,184 @@ export default function DashboardPage() {
   };
 
   return (
-    <DashboardLayout>
+    <div className="min-h-screen bg-[#f6f2ee] text-[#2b1b1e] font-sans antialiased">
+      {/* NAVBAR SUPERIOR ESTILO LINKEDIN (PALETA WINE & CREAM) */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#C9B8A6]/40 shadow-xs">
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+          {/* Logo Completo y Buscador */}
+          <div className="flex items-center gap-3 flex-1 max-w-md min-w-0">
+            <Link
+              to="/dashboard"
+              className="flex items-center gap-2.5 group focus:outline-none shrink-0"
+            >
+              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#5A0F24] rounded-2xl flex items-center justify-center shadow-[0_4px_12px_rgba(90,15,36,0.25)] group-hover:scale-105 transition-transform shrink-0">
+                <span className="font-black text-sm tracking-tighter text-[#F3EFE6]">
+                  F<span className="text-[#C68A8F]">H</span>
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm sm:text-base md:text-lg font-extrabold tracking-tight text-[#5A0F24] leading-none">
+                  Freelance
+                </span>
+                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-[#8C2C45] mt-0.5">
+                  {portalBadge}
+                </span>
+              </div>
+            </Link>
+
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#C9B8A6]" />
+              <input
+                type="text"
+                placeholder="Buscar..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.target.value.trim()) {
+                    navigate(
+                      `/projects?search=${encodeURIComponent(
+                        e.target.value.trim()
+                      )}`
+                    );
+                  }
+                }}
+                className="w-full bg-[#F3EFE6] text-sm text-[#2b1b1e] placeholder-[#5A0F24]/50 rounded-lg pl-9 pr-4 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#8C2C45] focus:bg-white transition border border-[#C9B8A6]/30"
+              />
+            </div>
+          </div>
+
+          {/* Menú de Navegación Limpio */}
+          <nav className="flex items-center gap-1 sm:gap-4 lg:gap-6">
+            <Link
+              to="/dashboard"
+              className="flex flex-col items-center justify-center text-[#8C2C45] border-b-2 border-[#8C2C45] text-[11px] font-bold py-1 px-2"
+            >
+              <Home className="w-5 h-5 mb-0.5" />
+              <span>Inicio</span>
+            </Link>
+            <Link
+              to="/network"
+              className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition"
+            >
+              <Users className="w-5 h-5 mb-0.5" />
+              <span>Mi red</span>
+            </Link>
+            <Link
+              to="/projects"
+              className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition"
+            >
+              <Briefcase className="w-5 h-5 mb-0.5" />
+              <span>Proyectos</span>
+            </Link>
+            <Link
+              to="/contracts"
+              className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition"
+            >
+              <CheckCircle2 className="w-5 h-5 mb-0.5" />
+              <span>Hitos</span>
+            </Link>
+            <button
+              type="button"
+              onClick={handleOpenChatDrawer}
+              className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition cursor-pointer"
+            >
+              <MessageSquare className="w-5 h-5 mb-0.5" />
+              <span>Mensajes</span>
+            </button>
+            <button
+              type="button"
+              className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#5A0F24] text-[11px] font-semibold py-1 px-2 border-b-2 border-transparent transition cursor-pointer"
+            >
+              <Bell className="w-5 h-5 mb-0.5" />
+              <span>Avisos</span>
+            </button>
+
+            {/* Botón de Acción según Rol */}
+            {isClient ? (
+              <Link
+                to="/projects/new"
+                data-testid="btn-nueva-convocatoria"
+                className="hidden sm:inline-flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] active:bg-[#481a27] text-white text-xs font-bold shadow-[0_4px_14px_rgba(140,44,69,0.35)] transition-all shrink-0 cursor-pointer"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span>+ Convocatoria</span>
+              </Link>
+            ) : (
+              <Link
+                to="/projects"
+                className="hidden sm:inline-flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#8C2C45] hover:bg-[#5A0F24] active:bg-[#481a27] text-white text-xs font-bold shadow-[0_4px_14px_rgba(140,44,69,0.35)] transition-all shrink-0 cursor-pointer"
+              >
+                <Briefcase className="w-4 h-4" />
+                <span>Explorar Proyectos</span>
+              </Link>
+            )}
+
+            {/* Avatar Dropdown (Yo ▾ con Cerrar sesión) */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="flex flex-col items-center justify-center text-[#5A0F24]/70 hover:text-[#8C2C45] text-[11px] font-semibold py-1 px-2 group cursor-pointer"
+                title="Cuenta y opciones"
+              >
+                <img
+                  src={profileData.avatarUrl}
+                  alt="Yo"
+                  className="w-5 h-5 rounded-full object-cover ring-1 ring-[#C9B8A6] group-hover:ring-[#8C2C45]"
+                  onError={(e) => {
+                    e.target.src =
+                      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+                  }}
+                />
+                <span className="flex items-center gap-0.5 text-[10px] leading-tight mt-0.5">
+                  <span>Yo</span>
+                  <ChevronDown className="w-2.5 h-2.5" />
+                </span>
+              </button>
+
+              {/* Menú desplegable */}
+              {isUserMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-[#C9B8A6]/40 p-3 z-50 animate-in fade-in duration-150">
+                  <div className="flex items-center gap-2.5 pb-3 border-b border-[#C9B8A6]/20">
+                    <img
+                      src={profileData.avatarUrl}
+                      alt="Yo"
+                      className="w-10 h-10 rounded-full object-cover ring-1 ring-[#C9B8A6]"
+                      onError={(e) => {
+                        e.target.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-bold text-[#5A0F24] truncate">{currentUser.fullName}</h4>
+                      <p className="text-[10px] text-[#2b1b1e]/60 truncate">{profileData.professionalTitle}</p>
+                    </div>
+                  </div>
+
+                  <Link
+                    to="/profile"
+                    onClick={() => setIsUserMenuOpen(false)}
+                    className="mt-2.5 block w-full text-center py-1.5 px-3 rounded-xl border border-[#8C2C45] text-[#8C2C45] hover:bg-[#F3EFE6] text-xs font-bold transition"
+                  >
+                    Ver perfil
+                  </Link>
+
+                  <div className="pt-2 mt-2 border-t border-[#C9B8A6]/20">
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-xs font-bold text-red-700 hover:bg-red-50 transition cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4 text-red-600" />
+                      <span>Cerrar sesión</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </nav>
+        </div>
+      </header>
+
       {/* CONTENIDO PRINCIPAL EN 3 COLUMNAS LIMPIAS */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+      <main className="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
         {/* ========================================================= */}
         {/* COLUMNA IZQUIERDA: PERFIL RESUMIDO & SHORTCUTS (3 COLS) */}
         {/* ========================================================= */}
@@ -253,13 +470,6 @@ export default function DashboardPage() {
 
           {/* TARJETA 2: ACCESOS DIRECTOS LIMPIOS (GUARDADOS, GRUPOS, EVENTOS) */}
           <div className="bg-white rounded-2xl border border-[#C9B8A6]/40 p-3 shadow-xs space-y-1 text-xs font-semibold text-[#5A0F24]">
-            <Link
-              to="/my-proposals"
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[#F3EFE6] transition text-left"
-            >
-              <FileText className="w-4 h-4 text-[#8C2C45]" />
-              <span>Mis postulaciones</span>
-            </Link>
             <button
               onClick={() => alert('Elementos guardados')}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[#F3EFE6] transition text-left cursor-pointer"
@@ -543,7 +753,7 @@ export default function DashboardPage() {
             </div>
           </footer>
         </aside>
-      </div>
+      </main>
 
       {/* MODAL LIMPIO PARA CREAR PUBLICACIÓN */}
       {isCreatePostModalOpen && (
@@ -617,6 +827,9 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+
+      {/* DRAWER LATERAL DE MENSAJERÍA CONTEXTUAL (HU-11) */}
+      <ProjectChatDrawer />
+    </div>
   );
 }

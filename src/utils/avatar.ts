@@ -1,10 +1,22 @@
-const API_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:4000/api').replace(/\/api\/?$/, '');
+const DEFAULT_API_BASE: string = import.meta.env.VITE_API_URL || 'https://api.freelancerhub.org/api';
+const API_ORIGIN = DEFAULT_API_BASE.replace(/\/api\/?$/, '');
 
-export const DEFAULT_AVATAR =
-  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'><rect width='128' height='128' rx='64' fill='%23F3EFE6'/><circle cx='64' cy='46' r='22' fill='%238C2C45'/><path d='M24 114c0-22 18-36 40-36s40 14 40 36' fill='%238C2C45'/></svg>";
+export const DEFAULT_AVATAR = '/avatar-sample.jpg';
 
-export function resolveAvatarUrl(url?: string | null): string {
-  if (!url || url === '/avatar-sample.jpg') return DEFAULT_AVATAR;
+export function resolveAvatarUrl(url?: string | null): string | null {
+  if (!url) return null;
+  if (url === '/avatar-sample.jpg') return '/avatar-sample.jpg';
+  if (url.startsWith('data:') || url.startsWith('blob:')) return url;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
   if (url.startsWith('/uploads/')) return `${API_ORIGIN}${url}`;
-  return url;
+  if (url.startsWith('uploads/')) return `${API_ORIGIN}/${url}`;
+  if (url.startsWith('/')) return `${API_ORIGIN}${url}`;
+  return `${API_ORIGIN}/${url}`;
+}
+
+export function getAvatarInitials(name?: string | null): string {
+  if (!name) return 'U';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return name.slice(0, 2).toUpperCase() || 'U';
 }

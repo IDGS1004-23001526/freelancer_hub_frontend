@@ -19,7 +19,11 @@ import { maskCardNumber } from '../utils/validators.js';
 import { useProjectStore } from '../stores/project.store.js';
 
 export default function PaymentMethodsPage() {
-  const { wallet, addFunds, updateActiveCard } = useProjectStore();
+  const { wallet, addFunds, updateActiveCard, fetchWallet } = useProjectStore();
+
+  useEffect(() => {
+    fetchWallet().catch(() => {});
+  }, [fetchWallet]);
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,12 +33,21 @@ export default function PaymentMethodsPage() {
   const formatMoney = (amount) =>
     new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: wallet?.currency || 'USD',
+      currency: wallet?.currency || 'MXN',
       minimumFractionDigits: 2,
     }).format(amount ?? 0);
 
-  const handleAddFunds = (amount = 1000) => {
-    addFunds(amount);
+  const handleAddFunds = async (amount = 1000) => {
+    try {
+      await addFunds(amount);
+    } catch (err) {
+      setToast({
+        type: 'error',
+        title: 'No se pudo agregar saldo',
+        message: err?.response?.data?.message || 'Inténtalo de nuevo.',
+      });
+      return;
+    }
     setToast({
       type: 'success',
       title: 'Saldo agregado',
@@ -46,7 +59,20 @@ export default function PaymentMethodsPage() {
     let mounted = true;
     const fetchCards = async () => {
       setLoading(true);
-      const list = await paymentApi.getPaymentMethods();
+      let list;
+      try {
+        list = await paymentApi.getPaymentMethods();
+      } catch (err) {
+        if (mounted) {
+          setLoading(false);
+          setToast({
+            type: 'error',
+            title: 'No se pudieron cargar tus tarjetas',
+            message: err?.response?.data?.message || 'Inténtalo de nuevo.',
+          });
+        }
+        return;
+      }
       if (mounted) {
         setCards(list);
         setLoading(false);
@@ -79,11 +105,14 @@ export default function PaymentMethodsPage() {
         title: 'Tarjeta guardada',
         message: `Tu tarjeta ${created.brand} con terminación ${created.last4} quedó registrada.`,
       });
-    } catch {
+    } catch (err) {
       setToast({
         type: 'error',
         title: 'No se pudo guardar',
-        message: 'Ocurrió un problema al registrar la tarjeta. Inténtalo de nuevo.',
+        message:
+          err?.response?.data?.message ||
+          err?.message ||
+          'Ocurrió un problema al registrar la tarjeta. Inténtalo de nuevo.',
       });
     } finally {
       setIsSubmitting(false);
@@ -93,7 +122,17 @@ export default function PaymentMethodsPage() {
   const handleDeleteCard = async (card) => {
     setDeletingId(card.id);
     try {
-      const remaining = await paymentApi.deletePaymentMethod(card.id);
+      let remaining;
+      try {
+        remaining = await paymentApi.deletePaymentMethod(card.id);
+      } catch (err) {
+        setToast({
+          type: 'error',
+          title: 'No se pudo eliminar la tarjeta',
+          message: err?.response?.data?.message || 'Inténtalo de nuevo.',
+        });
+        return;
+      }
       setCards(remaining);
 
       const nextPrimary = remaining.find((c) => c.isDefault) || remaining[0];
@@ -111,8 +150,18 @@ export default function PaymentMethodsPage() {
     }
   };
 
-  const handleSetDefault = (card) => {
-    const updated = paymentApi.setDefaultPaymentMethod(card.id);
+  const handleSetDefault = async (card) => {
+    let updated;
+    try {
+      updated = await paymentApi.setDefaultPaymentMethod(card.id);
+    } catch (err) {
+      setToast({
+        type: 'error',
+        title: 'No se pudo cambiar la tarjeta principal',
+        message: err?.response?.data?.message || 'Inténtalo de nuevo.',
+      });
+      return;
+    }
     setCards(updated);
     updateActiveCard(card.brand, card.last4);
     setToast({

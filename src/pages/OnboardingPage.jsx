@@ -1,201 +1,137 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import {
-  Sparkles,
   CheckCircle2,
   UserCheck,
   Briefcase,
   ArrowRight,
   ChevronRight,
   LayoutDashboard,
-  Plus,
 } from 'lucide-react';
 import AuthLayout from '../layouts/AuthLayout.jsx';
 import Button from '../features/ui/Button.jsx';
 import { useAuthStore } from '../stores/auth.store.js';
 import { profileApi } from '../api/profile.api.js';
 import ProfileCompletionModal from '../features/profile/components/ProfileCompletionModal.jsx';
+import ClientOnboardingModal from '../features/profile/components/ClientOnboardingModal.jsx';
+
+/**
+ * Pasos de onboarding por rol. El flujo es único: el backend indica qué pasos
+ * están completos y cada paso define su acción (abrir el modal de perfil o ir a una página).
+ */
+const STEP_CONFIG = {
+  // Freelancer
+  professional_info: {
+    title: 'Completa tu información profesional',
+    desc: 'Añade tu título profesional, biografía y tarifa por hora.',
+    action: { type: 'modal', step: 1 },
+  },
+  portfolio: {
+    title: 'Sube muestras de tu portafolio',
+    desc: 'Demuestra tu experiencia con proyectos y enlaces relevantes.',
+    action: { type: 'modal', step: 2 },
+  },
+  skills: {
+    title: 'Agrega tus habilidades técnicas',
+    desc: 'Elige tus tags principales para aparecer en las búsquedas de clientes.',
+    action: { type: 'modal', step: 3 },
+  },
+  // Cliente
+  company_profile: {
+    title: 'Configura el perfil de tu empresa',
+    desc: 'Agrega el nombre y una descripción de tu negocio.',
+    action: { type: 'modal', step: 1 },
+  },
+  payment_method: {
+    title: 'Registra un método de pago',
+    desc: 'Lo usarás para fondear la custodia Escrow de tus contratos.',
+    action: { type: 'modal', step: 2 },
+  },
+  first_project: {
+    title: 'Publica tu primera convocatoria',
+    desc: 'Describe los requerimientos y recibe propuestas de freelancers.',
+    action: { type: 'modal', step: 3 },
+  },
+};
+
+const DEFAULT_STEP_IDS = {
+  CLIENT: ['company_profile', 'payment_method', 'first_project'],
+  FREELANCER: ['professional_info', 'portfolio', 'skills'],
+};
 
 export default function OnboardingPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
 
-  const currentUser = location.state?.newUser || user || {
-    fullName: 'Nuevo Usuario',
-    role: 'FREELANCER',
-    email: '',
-  };
-
+  const currentUser = location.state?.newUser || user || { fullName: '', role: 'FREELANCER', email: '' };
   const isClient = currentUser.role === 'CLIENT';
+  const roleKey = isClient ? 'CLIENT' : 'FREELANCER';
 
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalInitialStep, setModalInitialStep] = useState(1);
-  const [progressData, setProgressData] = useState({
+  const [loadError, setLoadError] = useState('');
+  const [progressData, setProgressData] = useState(() => ({
     percentage: 0,
     completedSteps: 0,
     totalSteps: 3,
-    steps: [
-      { id: 'professional_info', isCompleted: false },
-      { id: 'portfolio', isCompleted: false },
-      { id: 'skills', isCompleted: false },
-    ],
-  });
-
-  // Cargar estado de onboarding si es freelancer
-  useEffect(() => {
-    if (!isClient) {
-      fetchProgress();
-    }
-  }, [isClient]);
+    steps: DEFAULT_STEP_IDS[roleKey].map((id) => ({ id, isCompleted: false })),
+  }));
 
   const fetchProgress = async () => {
     try {
-      const res = await profileApi.getOnboardingStatus().catch(() => null);
+      const res = await profileApi.getOnboardingStatus();
       if (res?.data) {
         setProgressData(res.data);
-      } else {
-        // Fallback local storage
-        const saved = localStorage.getItem('fh_local_profile');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          const s1 = Boolean(parsed.professionalTitle && parsed.bio && parsed.hourlyRate);
-          const s2 = Boolean(parsed.portfolioItems && parsed.portfolioItems.length > 0);
-          const s3 = Boolean(parsed.skills && parsed.skills.length > 0);
-          const count = [s1, s2, s3].filter(Boolean).length;
-          setProgressData({
-            percentage: Math.round((count / 3) * 100),
-            completedSteps: count,
-            totalSteps: 3,
-            steps: [
-              { id: 'professional_info', isCompleted: s1 },
-              { id: 'portfolio', isCompleted: s2 },
-              { id: 'skills', isCompleted: s3 },
-            ],
-          });
-        }
+        setLoadError('');
       }
     } catch {
-      // Manejo silencioso
+      setLoadError('No pudimos consultar tu progreso. Puedes continuar y volver a revisarlo más tarde.');
     }
   };
 
-  const isStepCompleted = (stepIndex) => {
-    if (isClient) return false;
-    return Boolean(progressData.steps?.[stepIndex]?.isCompleted);
-  };
+  useEffect(() => {
+    fetchProgress();
+  }, [roleKey]);
 
-  const handleOpenStep = (stepNumber) => {
-    if (isClient) {
-      if (stepNumber === 3) {
-        navigate('/projects/new');
-      } else {
-        navigate('/dashboard');
-      }
-      return;
-    }
-    setModalInitialStep(stepNumber);
-    setIsModalOpen(true);
-  };
+  const steps = (progressData.steps || [])
+    .filter((s) => STEP_CONFIG[s.id])
+    .map((s) => ({ ...STEP_CONFIG[s.id], id: s.id, completed: Boolean(s.isCompleted) }));
 
-  const handleOpenFirstPending = () => {
-    if (isClient) {
-      navigate('/projects/new');
-      return;
-    }
-
-    const firstIncompleteIndex = progressData.steps?.findIndex((s) => !s.isCompleted);
-    const targetStep = firstIncompleteIndex !== -1 && firstIncompleteIndex !== undefined
-      ? firstIncompleteIndex + 1
-      : 1;
-
-    setModalInitialStep(targetStep);
-    setIsModalOpen(true);
-  };
-
-  const getClientStepsStatus = () => {
-    try {
-      const localProfile = JSON.parse(localStorage.getItem('fh_local_profile') || '{}');
-      const localWallet = JSON.parse(localStorage.getItem('fh_client_wallet') || '{}');
-      const localProjects = JSON.parse(localStorage.getItem('fh_projects_catalog') || '[]');
-      const step1 = Boolean((localProfile?.bio || '').trim() || (localProfile?.professionalTitle || '').trim());
-      const step2 = Boolean(localWallet?.cardLast4);
-      const step3 = Array.isArray(localProjects) && localProjects.length > 0;
-      return [step1, step2, step3];
-    } catch {
-      return [false, false, false];
+  const runStep = (step) => {
+    if (step.action.type === 'modal') {
+      setModalInitialStep(step.action.step);
+      setIsModalOpen(true);
+    } else {
+      navigate(step.action.to, { state: { from: '/onboarding' } });
     }
   };
 
-  const clientStepsStatus = isClient ? getClientStepsStatus() : [false, false, false];
+  const nextPending = steps.find((s) => !s.completed);
+  const completedCount = steps.filter((s) => s.completed).length;
+  const totalSteps = steps.length || 3;
+  const progressPercentage = Math.round((completedCount / totalSteps) * 100);
+  const allCompleted = completedCount === totalSteps;
 
-  const steps = isClient
-    ? [
-        {
-          title: 'Configura el perfil de tu empresa o estudio',
-          desc: 'Agrega logotipo, descripción de tu negocio y sitio web.',
-          completed: clientStepsStatus[0],
-        },
-        {
-          title: 'Define tus métodos de pago para Escrow',
-          desc: 'Garantiza fondos protegidos para tus futuras contrataciones.',
-          completed: clientStepsStatus[1],
-        },
-        {
-          title: 'Publica tu primera oferta de proyecto',
-          desc: 'Describe los requerimientos y recibe propuestas de expertos.',
-          completed: clientStepsStatus[2],
-        },
-      ]
-    : [
-        {
-          title: 'Completa tu información profesional',
-          desc: 'Añade tu título profesional, biografía y tarifa por hora.',
-          completed: isStepCompleted(0),
-        },
-        {
-          title: 'Sube muestras de tu portafolio',
-          desc: 'Demuestra tu experiencia con proyectos y enlaces relevantes.',
-          completed: isStepCompleted(1),
-        },
-        {
-          title: 'Valida tus habilidades técnicas',
-          desc: 'Agrega tus tags principales y destaca en las búsquedas de clientes.',
-          completed: isStepCompleted(2),
-        },
-      ];
-
-  const completedCount = isClient
-    ? clientStepsStatus.filter(Boolean).length
-    : (progressData.completedSteps || 0);
-  const progressPercentage = isClient
-    ? Math.round((completedCount / 3) * 100)
-    : progressData.percentage;
-  const allCompleted = progressPercentage === 100;
+  const handlePrimaryAction = () => {
+    if (nextPending) {
+      runStep(nextPending);
+    } else {
+      navigate('/dashboard');
+    }
+  };
 
   return (
     <AuthLayout>
       <div className="max-w-2xl mx-auto py-4">
         {/* Welcome Card */}
         <div className="bg-white rounded-3xl p-6 md:p-10 shadow-[0_15px_40px_-15px_rgba(90,15,36,0.1)] border border-[#C9B8A6]/50 relative overflow-hidden">
-          {/* Subtle background glow */}
-          <div className="absolute -top-10 -right-10 w-48 h-48 bg-[#C68A8F]/20 rounded-full blur-2xl pointer-events-none" />
-
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F3EFE6] border border-[#C68A8F]/40 mb-4">
-            <Sparkles className="w-3.5 h-3.5 text-[#8C2C45]" />
-            <span className="text-[11px] font-bold text-[#5A0F24] uppercase tracking-wider">
-              {isClient ? 'Onboarding para Clientes' : 'Onboarding para Freelancers'}
-            </span>
-          </div>
-
           {/* Title */}
           <h1 className="text-2xl md:text-3xl font-extrabold text-[#5A0F24] tracking-tight mb-2">
-            ¡Hola, {currentUser.fullName}!
+            {currentUser.fullName ? `¡Hola, ${currentUser.fullName}!` : '¡Bienvenido!'}
           </h1>
           <p className="text-xs md:text-sm text-[#5A0F24]/75 mb-6 leading-relaxed">
-            Tu cuenta ha sido creada exitosamente. Para que disfrutes de todas las ventajas y seguridad de la plataforma, completemos los siguientes pasos de tu perfil.
+            Tu cuenta está lista. Completa estos {totalSteps} pasos para empezar a {isClient ? 'contratar' : 'recibir proyectos'}.
           </p>
 
           {/* Role pill preview */}
@@ -208,7 +144,7 @@ export default function OnboardingPage() {
                 Registrado como {isClient ? 'Cliente / Contratante' : 'Freelancer / Profesional Independiente'}
               </p>
               <p className="text-[11px] text-[#5A0F24]/70">
-                {currentUser.email || 'Correo verificado'}
+                {currentUser.email}
               </p>
             </div>
           </div>
@@ -220,7 +156,7 @@ export default function OnboardingPage() {
                 Progreso de tu Perfil
               </span>
               <span className="font-extrabold text-[#8C2C45]">
-                {progressPercentage}% ({completedCount}/3 completados)
+                {progressPercentage}% ({completedCount}/{totalSteps} completados)
               </span>
             </div>
             <div className="w-full h-2 bg-[#E8DEDA] rounded-full overflow-hidden">
@@ -231,6 +167,12 @@ export default function OnboardingPage() {
             </div>
           </div>
 
+          {loadError && (
+            <p role="status" className="mb-4 text-xs text-[#8C2C45] bg-[#F3EFE6] border border-[#C68A8F]/40 rounded-xl p-3">
+              {loadError}
+            </p>
+          )}
+
           {/* Step list */}
           <div className="space-y-3 mb-8">
             <h3 className="text-xs font-bold text-[#5A0F24] uppercase tracking-wider mb-2">
@@ -240,17 +182,11 @@ export default function OnboardingPage() {
             {steps.map((step, idx) => {
               const isCompleted = step.completed;
               return (
-                <div
-                  key={idx}
-                  onClick={() => {
-                    if (isClient) {
-                      const clientRoutes = ['/profile', '/payment-methods', '/projects/create'];
-                      navigate(clientRoutes[idx] || '/dashboard', { state: { from: '/onboarding' } });
-                    } else {
-                      handleOpenStep(idx + 1);
-                    }
-                  }}
-                  className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer group ${
+                <button
+                  type="button"
+                  key={step.id}
+                  onClick={() => runStep(step)}
+                  className={`w-full text-left flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer group focus-visible:outline-2 focus-visible:outline-[#8C2C45] ${
                     isCompleted
                       ? 'border-emerald-300 bg-emerald-50/40 hover:bg-emerald-50/70'
                       : 'border-[#C9B8A6]/40 bg-[#F3EFE6]/30 hover:bg-[#F3EFE6]'
@@ -276,7 +212,7 @@ export default function OnboardingPage() {
                       </h4>
                       {isCompleted && (
                         <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full shrink-0">
-                          Completado ✓
+                          Completado
                         </span>
                       )}
                     </div>
@@ -289,7 +225,7 @@ export default function OnboardingPage() {
                     </p>
                   </div>
                   <ChevronRight className="w-4 h-4 text-[#C9B8A6] group-hover:text-[#8C2C45] transition-colors shrink-0 mt-1" />
-                </div>
+                </button>
               );
             })}
           </div>
@@ -298,27 +234,18 @@ export default function OnboardingPage() {
           <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3 pt-2">
             <Button
               className="w-full sm:w-auto px-6 py-3 bg-[#8C2C45] hover:bg-[#5A0F24] text-white cursor-pointer"
-              onClick={handleOpenFirstPending}
+              onClick={handlePrimaryAction}
             >
-              {isClient ? (
-                <>
-                  <Plus className="w-4 h-4" />
-                  <span>+ Nueva Convocatoria</span>
-                </>
-              ) : (
-                <>
-                  <span>{allCompleted ? 'Editar Mi Perfil' : 'Completar Perfil Ahora'}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
+              <span>{allCompleted ? 'Ir a mi dashboard' : `Continuar: ${nextPending?.title ?? ''}`}</span>
+              <ArrowRight className="w-4 h-4" />
             </Button>
 
             <Link
-              to="/dashboard"
+              to={allCompleted ? '/profile' : '/dashboard'}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-xs font-bold text-[#5A0F24] bg-[#F3EFE6] hover:bg-[#e8dfd1] border border-[#C9B8A6]/60 py-3 px-5 rounded-xl transition-colors"
             >
               <LayoutDashboard className="w-4 h-4 text-[#8C2C45]" />
-              <span>Ir al Dashboard de Clientes</span>
+              <span>{allCompleted ? 'Ver mi perfil' : 'Omitir por ahora'}</span>
             </Link>
 
             <button
@@ -329,13 +256,25 @@ export default function OnboardingPage() {
               }}
               className="text-xs font-semibold text-[#8C2C45] hover:text-[#5A0F24] py-2 px-3 transition-colors cursor-pointer"
             >
-              Volver al Login
+              Cerrar sesión
             </button>
           </div>
         </div>
       </div>
 
-      {/* Modal interactivo de completitud de perfil */}
+      {/* Modal interactivo de completitud de perfil (mismo flujo para ambos roles) */}
+      {isClient ? (
+        <ClientOnboardingModal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            fetchProgress();
+          }}
+          initialStep={modalInitialStep}
+          progress={progressData}
+          onProgressUpdated={setProgressData}
+        />
+      ) : (
       <ProfileCompletionModal
         isOpen={isModalOpen}
         onClose={() => {
@@ -347,6 +286,7 @@ export default function OnboardingPage() {
           setProgressData(newProgress);
         }}
       />
+      )}
     </AuthLayout>
   );
 }

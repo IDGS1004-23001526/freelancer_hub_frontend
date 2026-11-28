@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { projectApi } from '../api/project.api.js';
-import { getProjectProposalsCount } from '../api/candidate.api.js';
+import { apiClient } from '../api/client.js';
 import type {
   ProjectConvocatoria,
   CreateProjectPayload,
@@ -17,7 +17,7 @@ const INITIAL_PROJECTS: ProjectConvocatoria[] = [];
 const DEFAULT_WALLET: ClientWalletInfo = {
   balance: 0,
   escrowLocked: 0,
-  currency: 'USD',
+  currency: 'MXN',
   cardBrand: '',
   cardLast4: '',
 };
@@ -32,13 +32,15 @@ function normalizeProject(proj: any): ProjectConvocatoria {
     COMPLETADO: 'COMPLETADO',
     CANCELLED: 'CANCELADO',
     CANCELADO: 'CANCELADO',
+    // CLOSED: la convocatoria ya tiene contrato formalizado.
+    CLOSED: 'EN_PROGRESO',
   };
 
   const id = proj.id || `proj_${Date.now()}`;
   const title = proj.title || '';
   const category = proj.category || 'Desarrollo Web';
   const budget = Number(proj.budget) || 0;
-  const currency = proj.currency || 'USD';
+  const currency = proj.currency || 'MXN';
   const skills = Array.isArray(proj.skills) ? proj.skills : [];
   const status = statusMap[proj.status] || 'ABIERTO';
 
@@ -57,18 +59,9 @@ function normalizeProject(proj: any): ProjectConvocatoria {
       proj.description ||
       `Convocatoria para ${title} en ${category}. Habilidades: ${skills.join(', ')}.`,
     status,
-    clientName: proj.clientName || 'Sofía Ramírez • Cliente Verificado',
+    clientName: proj.clientName || 'Cliente',
     clientAvatar: proj.clientAvatar || undefined,
-    proposalsCount:
-      typeof proj.proposalsCount === 'number'
-        ? proj.proposalsCount
-        : getProjectProposalsCount(id, {
-            title,
-            category,
-            budget,
-            currency,
-            skills,
-          }),
+    proposalsCount: typeof proj.proposalsCount === 'number' ? proj.proposalsCount : 0,
     createdAt: proj.createdAt || new Date().toISOString(),
     updatedAt: proj.updatedAt || proj.createdAt || new Date().toISOString(),
   };
@@ -129,7 +122,8 @@ interface ProjectState {
     clientName?: string
   ) => Promise<{ success: boolean; project?: ProjectConvocatoria; error?: string }>;
   getProjectById: (id: string) => ProjectConvocatoria | undefined;
-  addFunds: (amount: number) => void;
+  fetchWallet: () => Promise<void>;
+  addFunds: (amount: number) => Promise<void>;
   updateActiveCard: (cardBrand: string, cardLast4: string) => void;
 }
 
@@ -151,8 +145,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         set({ projects: normalized, loading: false });
         return;
       }
-    } catch {
-      // Fallback local
+    } catch (err: any) {
+      // Se muestra la última copia descargada del servidor, avisando del error.
+      set({ error: err?.response?.data?.message || 'No se pudieron cargar las convocatorias.' });
     }
     const localProjects = loadInitialProjects();
     if (params?.search || (params?.category && params.category !== 'TODAS')) {
@@ -172,7 +167,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set({ projects: localProjects, loading: false });
   },
 
-  createProject: async (payload: CreateProjectPayload, clientName?: string) => {
+  createProject: async (payload: CreateProjectPayload, _clientName?: string) => {
     set({ loading: true, error: null });
     try {
       const response = await projectApi.createProject(payload);
@@ -186,46 +181,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         set({ projects: updatedList, loading: false });
         return { success: true, project: created };
       }
-      throw new Error('Fallback local');
-    } catch {
-      // Creación reactiva local con estado ABIERTO garantizado
-      const now = new Date().toISOString();
-      const newId = `proj_${Date.now()}`;
-      const generatedCount = getProjectProposalsCount(newId, {
-        title: payload.title.trim(),
-        category: payload.category || 'Desarrollo Web',
-        budget: Number(payload.budget),
-        currency: payload.currency || 'MXN',
-        skills: payload.skills,
-      });
-
-      const newProject: ProjectConvocatoria = {
-        id: newId,
-        title: payload.title.trim(),
-        category: payload.category || 'Desarrollo Web',
-        budget: Number(payload.budget),
-        currency: payload.currency || 'MXN',
-        skills: payload.skills,
-        estimatedDate: payload.estimatedDate,
-        description:
-          payload.description?.trim() ||
-          `Convocatoria abierta para ${payload.title.trim()} en la categoría de ${payload.category || 'Desarrollo Web'}. Se requieren especialistas con dominio en ${payload.skills.join(', ')}.`,
-        status: 'ABIERTO',
-        clientName: clientName || 'Sofía Ramírez • Cliente Verificado',
-        proposalsCount: generatedCount,
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      const updatedList = [newProject, ...get().projects];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
-
-      set({
-        projects: updatedList,
-        loading: false,
-      });
-
-      return { success: true, project: newProject };
+      throw new Error('Respuesta vacía del servidor.');
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message || err?.message || 'No se pudo publicar la convocatoria.';
+      set({ loading: false, error: message });
+      return { success: false, error: message };
     }
   },
 
@@ -233,15 +194,24 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     return get().projects.find((p) => p.id === id);
   },
 
-  addFunds: (amount: number) => {
-    if (amount <= 0) return;
-    const currentWallet = get().wallet;
+  fetchWallet: async () => {
+    const response = await apiClient.get('/v1/wallet');
+    const data = response.data?.data;
+    if (!data) return;
     const updatedWallet: ClientWalletInfo = {
-      ...currentWallet,
-      balance: currentWallet.balance + amount,
+      ...get().wallet,
+      balance: Number(data.availableBalance) || 0,
+      escrowLocked: Number(data.escrowLocked) || 0,
+      currency: data.currency || 'MXN',
     };
     localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify(updatedWallet));
     set({ wallet: updatedWallet });
+  },
+
+  addFunds: async (amount: number) => {
+    if (amount <= 0) return;
+    await apiClient.post('/v1/wallet/deposit', { amount });
+    await get().fetchWallet();
   },
 
   updateActiveCard: (cardBrand: string, cardLast4: string) => {

@@ -34,21 +34,24 @@ interface ContractKanbanState {
 
 export const useContractStore = create<ContractKanbanState>((set, get) => ({
   contracts: [],
-  selectedContractId: 'ctr_901',
+  selectedContractId: '',
   loading: false,
   updatingMilestoneId: null,
   submittingReview: false,
 
   loadContracts: async (preferredContractId) => {
     set({ loading: true });
-    const list = await contractApi.getContracts();
-    const currentId = preferredContractId || get().selectedContractId;
-    const exists = list.some((c) => c.id === currentId);
-    set({
-      contracts: list,
-      selectedContractId: exists ? currentId : list[0]?.id || 'ctr_901',
-      loading: false,
-    });
+    try {
+      const list = await contractApi.getContracts();
+      const currentId = preferredContractId || get().selectedContractId;
+      const exists = list.some((c) => c.id === currentId);
+      set({
+        contracts: list,
+        selectedContractId: exists ? currentId : list[0]?.id || '',
+      });
+    } finally {
+      set({ loading: false });
+    }
   },
 
   setSelectedContractId: (contractId) =>
@@ -59,12 +62,17 @@ export const useContractStore = create<ContractKanbanState>((set, get) => ({
     const wasCompletedBefore = prevContract?.status === 'COMPLETED';
 
     set({ updatingMilestoneId: milestoneId });
-    const updatedList = await contractApi.updateMilestoneStatus(
-      contractId,
-      milestoneId,
-      newStatus,
-      deliveryNotes
-    );
+    let updatedList: ActiveContractDetail[];
+    try {
+      updatedList = await contractApi.updateMilestoneStatus(
+        contractId,
+        milestoneId,
+        newStatus,
+        deliveryNotes
+      );
+    } finally {
+      set({ updatingMilestoneId: null });
+    }
     const nextContract = updatedList.find((c) => c.id === contractId);
     const isNowCompleted = nextContract?.status === 'COMPLETED';
 
@@ -80,11 +88,16 @@ export const useContractStore = create<ContractKanbanState>((set, get) => ({
 
   submitBlindReview: async (payload, reviewerName, targetName) => {
     set({ submittingReview: true });
-    const review = await contractApi.submitBlindReview(
-      payload,
-      reviewerName,
-      targetName
-    );
+    let review: BlindReviewRecord;
+    try {
+      review = await contractApi.submitBlindReview(
+        payload,
+        reviewerName,
+        targetName
+      );
+    } finally {
+      set({ submittingReview: false });
+    }
     const updatedContracts = get().contracts.map((c) =>
       c.id === payload.contractId ? { ...c, review } : c
     );

@@ -1,4 +1,4 @@
-export type ProposalStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED';
+export type ProposalStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'WITHDRAWN';
 
 export interface MilestoneQuote {
   id: string;

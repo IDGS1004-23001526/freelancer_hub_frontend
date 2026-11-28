@@ -348,12 +348,21 @@ export function ContractCreatedBanner({ contract, formatMoney }) {
         </div>
       </div>
 
-      <Link
-        to="/contracts"
-        className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold shrink-0 text-center transition-colors"
-      >
-        Ir al tablero de entregas →
-      </Link>
+      <div className="flex flex-wrap items-center gap-2 shrink-0">
+        <Link
+          to={`/contracts/${contract.id}/fund`}
+          data-testid="btn-go-to-funding"
+          className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold shrink-0 text-center transition-colors shadow-xs"
+        >
+          Depositar en Garantía Escrow →
+        </Link>
+        <Link
+          to="/contracts"
+          className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-emerald-100/70 border border-emerald-300 text-emerald-950 text-xs font-bold shrink-0 text-center transition-colors"
+        >
+          Ver en Tablero
+        </Link>
+      </div>
     </div>
   );
 }

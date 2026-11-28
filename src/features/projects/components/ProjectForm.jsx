@@ -30,7 +30,7 @@ function getLocalDateString(offsetDays = 0) {
   return `${year}-${month}-${day}`;
 }
 
-export default function ProjectForm({ onValidationChange }) {
+export default function ProjectForm({ onValidationChange, onCreated }) {
   const navigate = useNavigate();
   const { createProject } = useProjectStore();
   const { user, accessToken } = useAuthStore();
@@ -276,53 +276,41 @@ export default function ProjectForm({ onValidationChange }) {
       ? `${user.fullName} • Cliente Verificado`
       : 'Cliente Verificado';
 
-    try {
-      const result = await createProject(payload, clientDisplayName);
-      const createdFromApi = result?.project;
+    const result = await createProject(payload, clientDisplayName);
 
+    if (!result.success || !result.project) {
       setToast({
-        type: 'success',
-        title: '¡Convocatoria publicada exitosamente!',
-        message: 'Redirigiendo al feed de convocatorias...',
+        type: 'error',
+        title: 'Error al publicar la convocatoria',
+        message:
+          result.error ||
+          'No fue posible registrar el proyecto. Verifica tu conexión e inténtalo de nuevo.',
       });
-
-      setTimeout(() => {
-        navigate('/projects', {
-          state: {
-            justCreated: true,
-            newProjectId: createdFromApi?.id,
-          },
-        });
-      }, 500);
-    } catch {
-      const result = await createProject(payload, clientDisplayName);
-
-      if (result.success && result.project) {
-        setToast({
-          type: 'success',
-          title: '¡Convocatoria publicada con estado ABIERTO!',
-          message: 'Redirigiendo al feed de proyectos...',
-        });
-
-        setTimeout(() => {
-          navigate('/projects', {
-            state: {
-              justCreated: true,
-              newProjectId: result.project.id,
-            },
-          });
-        }, 500);
-      } else {
-        setToast({
-          type: 'error',
-          title: 'Error al publicar la convocatoria',
-          message:
-            result.error ||
-            'No fue posible registrar el proyecto. Verifica tu conexión e inténtalo de nuevo.',
-        });
-        setIsSubmitting(false);
-      }
+      setIsSubmitting(false);
+      return;
     }
+
+    // Embebido (p. ej. onboarding): el contenedor decide qué hacer después.
+    if (onCreated) {
+      setIsSubmitting(false);
+      onCreated(result.project);
+      return;
+    }
+
+    setToast({
+      type: 'success',
+      title: '¡Convocatoria publicada exitosamente!',
+      message: 'Redirigiendo al feed de convocatorias...',
+    });
+
+    setTimeout(() => {
+      navigate('/projects', {
+        state: {
+          justCreated: true,
+          newProjectId: result.project.id,
+        },
+      });
+    }, 500);
   };
 
   return (

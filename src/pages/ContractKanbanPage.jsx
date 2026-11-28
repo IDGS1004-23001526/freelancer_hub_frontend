@@ -73,8 +73,16 @@ export default function ContractKanbanPage() {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
+  const showApiError = (title, err) => {
+    setToast({
+      type: 'error',
+      title,
+      message: err?.response?.data?.message || err?.message || 'Inténtalo de nuevo.',
+    });
+  };
+
   useEffect(() => {
-    loadContracts(id);
+    loadContracts(id).catch((err) => showApiError('No se pudieron cargar los contratos', err));
   }, [id, loadContracts]);
 
   const activeContract = useMemo(
@@ -136,12 +144,18 @@ export default function ContractKanbanPage() {
   const handleStatusChange = async (milestone, nextStatus, notes) => {
     if (!activeContract || milestone.status === nextStatus) return;
 
-    const { justCompletedContract } = await moveMilestone(
-      activeContract.id,
-      milestone.id,
-      nextStatus,
-      notes
-    );
+    let justCompletedContract = false;
+    try {
+      ({ justCompletedContract } = await moveMilestone(
+        activeContract.id,
+        milestone.id,
+        nextStatus,
+        notes
+      ));
+    } catch (err) {
+      showApiError('No se pudo actualizar el hito', err);
+      return;
+    }
 
     if (nextStatus === 'APPROVED') {
       setToast({
@@ -190,12 +204,17 @@ export default function ContractKanbanPage() {
 
   const handleReviewSubmit = async (payload) => {
     if (!activeContract) return;
-    const reviewerName = user?.fullName || 'Sofía Ramírez';
-    await submitBlindReview(
-      payload,
-      reviewerName,
-      activeContract.freelancerName
-    );
+    const reviewerName = user?.fullName || 'Tú';
+    try {
+      await submitBlindReview(
+        payload,
+        reviewerName,
+        activeContract.freelancerName
+      );
+    } catch (err) {
+      showApiError('No se pudo guardar la calificación', err);
+      return;
+    }
     setToast({
       type: 'success',
       title: 'Calificación guardada',
@@ -206,7 +225,21 @@ export default function ContractKanbanPage() {
 
   const handleRevealCounterpart = async (contractId) => {
     if (!activeContract) return;
-    await revealCounterpartReview(contractId, activeContract.freelancerName);
+    let review;
+    try {
+      review = await revealCounterpartReview(contractId, activeContract.freelancerName);
+    } catch (err) {
+      showApiError('No se pudo consultar la calificación', err);
+      return;
+    }
+    if (!review?.isCounterpartSubmitted) {
+      setToast({
+        type: 'info',
+        title: 'Aún sin calificación',
+        message: `${activeContract.freelancerName} todavía no ha calificado este proyecto.`,
+      });
+      return;
+    }
     setToast({
       type: 'success',
       title: '¡Ambas calificaciones están listas!',
@@ -281,13 +314,27 @@ export default function ContractKanbanPage() {
                     className={`px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider ${
                       allCompleted
                         ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                        : 'bg-amber-100 text-amber-900 border border-amber-300'
+                        : activeContract.status === 'DRAFT'
+                          ? 'bg-amber-100 text-amber-950 border border-amber-300'
+                          : 'bg-emerald-50 text-emerald-900 border border-emerald-300'
                     }`}
                   >
                     {allCompleted
                       ? 'Todas las entregas aprobadas'
-                      : 'En ejecución'}
+                      : activeContract.status === 'DRAFT'
+                        ? 'Pendiente de Fondeo Escrow'
+                        : 'En ejecución'}
                   </span>
+
+                  {activeContract.status === 'DRAFT' && (
+                    <Link
+                      to={`/contracts/${activeContract.id}/fund`}
+                      className="px-3 py-1 rounded-full bg-[#8C2C45] hover:bg-[#5A0F24] text-white text-[11px] font-extrabold transition-colors shadow-2xs inline-flex items-center gap-1"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Depositar en Custodia Escrow →</span>
+                    </Link>
+                  )}
                 </div>
 
                 <h1 className="text-xl md:text-2xl font-extrabold text-[#5A0F24] tracking-tight">
